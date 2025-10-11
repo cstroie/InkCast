@@ -89,7 +89,7 @@ void listPBMFiles() {
   while (display.nextPage());
 }
 
-void displayImage() {
+void displayHelloWorld() {
   display.setRotation(1); // Set rotation to match display orientation
   display.setFullWindow();
   display.firstPage();
@@ -98,9 +98,9 @@ void displayImage() {
     // Fill background with white
     display.fillScreen(GxEPD_WHITE);
     
-    // Display a simple message instead
+    // Display "Hello World" message
     display.setCursor(20, 50);
-    display.print("PBM Image Loader");
+    display.print("Hello World");
   }
   while (display.nextPage());
 }
@@ -112,27 +112,7 @@ void setup() {
   // USE THIS for Waveshare boards with "clever" reset circuit, 2ms reset pulse
   display.init(115200, true, 2, false);
   
-  // Initialize SPIFFS
-#if defined(ESP32)
-  if (!SPIFFS.begin(true)) {
-#elif defined(ESP8266)
-  if (!SPIFFS.begin()) {
-#endif
-    display.setRotation(1);
-    display.setFullWindow();
-    display.firstPage();
-    do
-    {
-      display.fillScreen(GxEPD_WHITE);
-      display.setCursor(20, 50);
-      display.print("SPIFFS Mount Failed");
-    }
-    while (display.nextPage());
-    display.hibernate();
-    return;
-  }
-  
-  listPBMFiles(); // List all PBM files in SPIFFS
+  displayHelloWorld(); // Display "Hello World" message
   display.hibernate();
 }
 
