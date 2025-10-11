@@ -35,13 +35,8 @@
 #include "FS.h"
 #endif
 
-#if defined(ESP8266)
-#include <ESP8266WiFi.h>
-#endif
-
 // select the display class and display driver class in the following file (new style):
 #include "display.h"
-
 
 void listPBMFiles() {
   display.setRotation(1); // Set rotation to match display orientation
