@@ -29,9 +29,64 @@
 #include <GxEPD2_7C.h>
 #include <Fonts/FreeMonoBold12pt7b.h>
 
+#if defined(ESP32)
+#include "SPIFFS.h"
+#elif defined(ESP8266)
+#include "FS.h"
+#endif
+
 // select the display class and display driver class in the following file (new style):
 #include "display.h"
 
+
+void listPBMFiles() {
+  display.setRotation(1); // Set rotation to match display orientation
+  display.setFullWindow();
+  display.firstPage();
+  do
+  {
+    // Fill background with white
+    display.fillScreen(GxEPD_WHITE);
+    
+    // Display title
+    display.setCursor(20, 30);
+    display.print("PBM Files in SPIFFS:");
+    
+    // List PBM files
+    int yPosition = 50;
+    
+#if defined(ESP32)
+    File root = SPIFFS.open("/");
+    File file = root.openNextFile();
+    while (file) {
+      String fileName = file.name();
+      if (fileName.endsWith(".pbm")) {
+        display.setCursor(20, yPosition);
+        display.print(fileName.c_str());
+        yPosition += 20;
+      }
+      file = root.openNextFile();
+    }
+    root.close();
+#elif defined(ESP8266)
+    Dir dir = SPIFFS.openDir("/");
+    while (dir.next()) {
+      String fileName = dir.fileName();
+      if (fileName.endsWith(".pbm")) {
+        display.setCursor(20, yPosition);
+        display.print(fileName.c_str());
+        yPosition += 20;
+      }
+    }
+#endif
+    
+    if (yPosition == 50) {
+      display.setCursor(20, 50);
+      display.print("No PBM files found");
+    }
+  }
+  while (display.nextPage());
+}
 
 void displayImage() {
   display.setRotation(1); // Set rotation to match display orientation
@@ -54,7 +109,27 @@ void setup()
   //display.init(115200); // default 10ms reset pulse, e.g. for bare panels with DESPI-C02
   display.init(115200, true, 2, false); // USE THIS for Waveshare boards with "clever" reset circuit, 2ms reset pulse
   
-  displayImage(); // Display the original bitmap
+  // Initialize SPIFFS
+#if defined(ESP32)
+  if (!SPIFFS.begin(true)) {
+#elif defined(ESP8266)
+  if (!SPIFFS.begin()) {
+#endif
+    display.setRotation(1);
+    display.setFullWindow();
+    display.firstPage();
+    do
+    {
+      display.fillScreen(GxEPD_WHITE);
+      display.setCursor(20, 50);
+      display.print("SPIFFS Mount Failed");
+    }
+    while (display.nextPage());
+    display.hibernate();
+    return;
+  }
+  
+  listPBMFiles(); // List all PBM files in SPIFFS
   display.hibernate();
 }
 
