@@ -27,7 +27,7 @@
 #include <GxEPD2_3C.h>
 #include <GxEPD2_4C.h>
 #include <GxEPD2_7C.h>
-#include <Fonts/FreeMonoBold9pt7b.h>
+#include <Fonts/FreeMonoBold12pt7b.h>
 
 // select the display class and display driver class in the following file (new style):
 #include "display.h"
@@ -54,8 +54,8 @@ const char HelloWorld[] = "Mama are mere";
 void helloWorld()
 {
   display.setRotation(1);
-  display.setFont(&FreeMonoBold9pt7b);
-  display.setTextColor(GxEPD_BLACK);
+  display.setFont(&FreeMonoBold12pt7b);
+  display.setTextColor(GxEPD_RED);
   int16_t tbx, tby; uint16_t tbw, tbh;
   display.getTextBounds(HelloWorld, 0, 0, &tbx, &tby, &tbw, &tbh);
   // center the bounding box by transposition of the origin:
