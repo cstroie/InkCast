@@ -39,6 +39,13 @@
 #include "FS.h"
 #endif
 
+// Include WiFi support
+#if defined(ESP32)
+#include <WiFi.h>
+#elif defined(ESP8266)
+#include <ESP8266WiFi.h>
+#endif
+
 #include <stdlib.h>
 
 // select the display class and display driver class in the following file (new style):
@@ -352,6 +359,40 @@ void setup() {
   Serial.begin(115200);
   // Initialize random seed
   randomSeed(analogRead(0)); 
+  
+  // Connect to WiFi
+  WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
+  Serial.print("Connecting to WiFi");
+  int attempts = 0;
+  while (WiFi.status() != WL_CONNECTED && attempts < 20) {
+    delay(500);
+    Serial.print(".");
+    attempts++;
+  }
+  
+  if (WiFi.status() != WL_CONNECTED) {
+    Serial.println("Failed to connect to WiFi");
+    // Display WiFi error with technical font
+    display.setRotation(1);
+    display.setFullWindow();
+    display.firstPage();
+    do
+    {
+      display.fillScreen(GxEPD_WHITE);
+      display.setFont(&FreeMonoBold12pt7b);
+      display.setCursor(20, 50);
+      display.print("WiFi Connection Failed");
+    }
+    while (display.nextPage());
+    display.hibernate();
+#if defined(ESP8266)
+    // Go to deep sleep
+    ESP.deepSleep(0); 
+#endif
+    return;
+  }
+  
+  Serial.println("Connected to WiFi");
   
   // default 10ms reset pulse, e.g. for bare panels with DESPI-C02
   //display.init(115200); 
