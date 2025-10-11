@@ -381,8 +381,24 @@ void setup() {
   
   // Try to display a random PBM file, fallback to "Hello World" if none found
   if (!displayRandomPBM()) {
-    // No PBM files found, list available files and display "Hello World"
-    displayHelloWorld(); 
+    // No PBM files found, display instructions
+    display.setRotation(1);
+    display.setFullWindow();
+    display.firstPage();
+    do
+    {
+      display.fillScreen(GxEPD_WHITE);
+      display.setFont(&FreeMonoBold12pt7b);
+      display.setCursor(20, 30);
+      display.print("No PBM Files Found");
+      display.setCursor(20, 60);
+      display.print("Please add PBM files");
+      display.setCursor(20, 90);
+      display.print("to SPIFFS.");
+      display.setCursor(20, 120);
+      display.print("Format: 296x128 1-bit");
+    }
+    while (display.nextPage());
   }
   display.hibernate();
   
