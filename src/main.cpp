@@ -88,6 +88,7 @@
 #include "display.h"
 
 void listPBMFiles() {
+  Serial.println("Listing PBM files in SPIFFS...");
   display.setRotation(1); // Set rotation to match display orientation
   display.setFullWindow();
   display.firstPage();
@@ -102,6 +103,7 @@ void listPBMFiles() {
     
     // List PBM files
     int yPosition = 50;
+    int fileCount = 0;
     
 #if defined(ESP32)
     File root = SPIFFS.open("/");
@@ -110,9 +112,11 @@ void listPBMFiles() {
       while (file) {
         String fileName = file.name();
         if (fileName.endsWith(".pbm")) {
+          Serial.println("Found PBM file: " + fileName);
           display.setCursor(20, yPosition);
           display.print(fileName.c_str());
           yPosition += 20;
+          fileCount++;
         }
         file = root.openNextFile();
       }
@@ -123,16 +127,21 @@ void listPBMFiles() {
     while (dir.next()) {
       String fileName = dir.fileName();
       if (fileName.endsWith(".pbm")) {
+        Serial.println("Found PBM file: " + fileName);
         display.setCursor(20, yPosition);
         display.print(fileName.c_str());
         yPosition += 20;
+        fileCount++;
       }
     }
 #endif
     
-    if (yPosition == 50) {
+    if (fileCount == 0) {
+      Serial.println("No PBM files found in SPIFFS");
       display.setCursor(20, 50);
       display.print("No PBM files found");
+    } else {
+      Serial.println("Found " + String(fileCount) + " PBM files in SPIFFS");
     }
   }
   while (display.nextPage());
@@ -155,12 +164,16 @@ void displayHelloWorld() {
 }
 
 bool displayRandomPBM() {
+  Serial.println("Searching for PBM files to display...");
   // Count PBM files
   int fileCount = 0;
   
 #if defined(ESP32)
   File root = SPIFFS.open("/");
-  if (!root) return false;
+  if (!root) {
+    Serial.println("Failed to open SPIFFS root directory");
+    return false;
+  }
   
   File file = root.openNextFile();
   while (file) {
@@ -181,10 +194,15 @@ bool displayRandomPBM() {
   }
 #endif
 
-  if (fileCount == 0) return false;
+  if (fileCount == 0) {
+    Serial.println("No PBM files found for display");
+    return false;
+  }
+  Serial.println("Found " + String(fileCount) + " PBM files");
 
   // Select a random file
   int randomIndex = random(fileCount);
+  Serial.println("Selected random file index: " + String(randomIndex));
   
 #if defined(ESP32)
   root = SPIFFS.open("/");
@@ -207,15 +225,24 @@ bool displayRandomPBM() {
   }
   root.close();
   
-  if (selectedFile.isEmpty()) return false;
+  if (selectedFile.isEmpty()) {
+    Serial.println("Failed to select a PBM file");
+    return false;
+  }
+  Serial.println("Selected file: " + selectedFile);
   
   // Open the selected file
   File pbmFile = SPIFFS.open(selectedFile, "r");
-  if (!pbmFile) return false;
+  if (!pbmFile) {
+    Serial.println("Failed to open file: " + selectedFile);
+    return false;
+  }
+  Serial.println("Successfully opened file: " + selectedFile);
   
   // Skip PBM header (P4 format for binary)
   char header[2];
   pbmFile.readBytes(header, 2); // Read "P4"
+  Serial.println("Read PBM header: " + String(header[0]) + String(header[1]));
   
   // Skip comments and whitespace
   while (pbmFile.available()) {
@@ -260,23 +287,30 @@ bool displayRandomPBM() {
   
   // Calculate buffer size (1 bit per pixel for 296x128)
   int bufferSize = (296 * 128 + 7) / 8; // 4736 bytes
+  Serial.println("Allocating buffer of " + String(bufferSize) + " bytes");
   uint8_t* buffer = (uint8_t*)malloc(bufferSize);
   
   if (!buffer) {
+    Serial.println("Failed to allocate memory for image buffer");
     pbmFile.close();
     return false;
   }
+  Serial.println("Successfully allocated image buffer");
   
   // Read image data
+  Serial.println("Reading image data...");
   int bytesRead = pbmFile.readBytes((char*)buffer, bufferSize);
   pbmFile.close();
+  Serial.println("Read " + String(bytesRead) + " bytes from file");
   
   if (bytesRead != bufferSize) {
+    Serial.println("Error: Expected " + String(bufferSize) + " bytes but read " + String(bytesRead));
     free(buffer);
     return false;
   }
   
   // Display the image
+  Serial.println("Displaying image on e-paper...");
   display.setRotation(1);
   display.setFullWindow();
   display.firstPage();
@@ -286,6 +320,7 @@ bool displayRandomPBM() {
     display.drawBitmap(0, 0, buffer, 296, 128, GxEPD_BLACK);
   }
   while (display.nextPage());
+  Serial.println("Image displayed successfully");
   
   free(buffer);
   return true;
@@ -306,15 +341,24 @@ bool displayRandomPBM() {
     }
   }
   
-  if (selectedFile.isEmpty()) return false;
+  if (selectedFile.isEmpty()) {
+    Serial.println("Failed to select a PBM file");
+    return false;
+  }
+  Serial.println("Selected file: " + selectedFile);
   
   // Open the selected file
   File pbmFile = SPIFFS.open(selectedFile, "r");
-  if (!pbmFile) return false;
+  if (!pbmFile) {
+    Serial.println("Failed to open file: " + selectedFile);
+    return false;
+  }
+  Serial.println("Successfully opened file: " + selectedFile);
   
   // Skip PBM header (P4 format for binary)
   char header[2];
   pbmFile.readBytes(header, 2); // Read "P4"
+  Serial.println("Read PBM header: " + String(header[0]) + String(header[1]));
   
   // Skip comments and whitespace
   while (pbmFile.available()) {
@@ -359,23 +403,30 @@ bool displayRandomPBM() {
   
   // Calculate buffer size (1 bit per pixel for 296x128)
   int bufferSize = (296 * 128 + 7) / 8; // 4736 bytes
+  Serial.println("Allocating buffer of " + String(bufferSize) + " bytes");
   uint8_t* buffer = (uint8_t*)malloc(bufferSize);
   
   if (!buffer) {
+    Serial.println("Failed to allocate memory for image buffer");
     pbmFile.close();
     return false;
   }
+  Serial.println("Successfully allocated image buffer");
   
   // Read image data
+  Serial.println("Reading image data...");
   int bytesRead = pbmFile.readBytes((char*)buffer, bufferSize);
   pbmFile.close();
+  Serial.println("Read " + String(bytesRead) + " bytes from file");
   
   if (bytesRead != bufferSize) {
+    Serial.println("Error: Expected " + String(bufferSize) + " bytes but read " + String(bytesRead));
     free(buffer);
     return false;
   }
   
   // Display the image
+  Serial.println("Displaying image on e-paper...");
   display.setRotation(1);
   display.setFullWindow();
   display.firstPage();
@@ -385,6 +436,7 @@ bool displayRandomPBM() {
     display.drawBitmap(0, 0, buffer, 296, 128, GxEPD_BLACK);
   }
   while (display.nextPage());
+  Serial.println("Image displayed successfully");
   
   free(buffer);
   return true;
@@ -469,10 +521,13 @@ void setup() {
   
   // Initialize SPIFFS
 #if defined(ESP32)
+  Serial.println("Mounting SPIFFS...");
   if (!SPIFFS.begin(true)) {
 #elif defined(ESP8266)
+  Serial.println("Mounting SPIFFS...");
   if (!SPIFFS.begin()) {
 #endif
+    Serial.println("Failed to mount SPIFFS");
     // Display SPIFFS error with technical font
     display.setRotation(1);
     display.setFullWindow();
@@ -492,9 +547,12 @@ void setup() {
 #endif
     return;
   }
+  Serial.println("SPIFFS mounted successfully");
   
   // Try to display a random PBM file, fallback to "Hello World" if none found
+  Serial.println("Attempting to display a random PBM file...");
   if (!displayRandomPBM()) {
+    Serial.println("No PBM files found, trying to fetch image from server...");
     // No PBM files found, try to fetch image from server
     bool imageFetched = false;
     
@@ -668,6 +726,7 @@ void setup() {
 #endif
 #else // CONFIG_LOADED
     // If we couldn't fetch an image from the server, display instructions
+    Serial.println("Displaying instructions for adding PBM files...");
     display.setRotation(1);
     display.setFullWindow();
     display.firstPage();
