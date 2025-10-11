@@ -9,5 +9,8 @@
 // Example: 300e6 = 300 seconds = 5 minutes
 #define DEEP_SLEEP_DURATION 0
 
+// Server URL for random pictures
+#define SERVER_URL "https://eridu.eu.org/test.pbm"
+
 // Uncomment to enable debug output
 // #define DEBUG_OUTPUT
