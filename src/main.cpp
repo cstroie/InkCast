@@ -346,7 +346,8 @@ bool displayRandomPBM() {
 
 void setup() {
   Serial.begin(115200);
-  randomSeed(analogRead(0)); // Initialize random seed
+  // Initialize random seed
+  randomSeed(analogRead(0)); 
   
   // default 10ms reset pulse, e.g. for bare panels with DESPI-C02
   //display.init(115200); 
