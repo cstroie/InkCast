@@ -32,7 +32,7 @@
 // select the display class and display driver class in the following file (new style):
 #include "display.h"
 
-// Create a simple 128x296 test image with black, white, and red pixels
+// Create a simple 296x128 test image with black, white, and red pixels
 void displayImage() {
   display.setRotation(1); // Set rotation to match display orientation
   display.setFullWindow();
@@ -43,20 +43,20 @@ void displayImage() {
     display.fillScreen(GxEPD_WHITE);
     
     // Draw some colored rectangles to demonstrate all three colors
-    // Top third - Black
-    display.fillRect(0, 0, 128, 98, GxEPD_BLACK);
+    // Left third - Black
+    display.fillRect(0, 0, 98, 128, GxEPD_BLACK);
     
     // Middle third - Red
-    display.fillRect(0, 98, 128, 98, GxEPD_RED);
+    display.fillRect(98, 0, 98, 128, GxEPD_RED);
     
-    // Bottom third - White (already filled, but showing for clarity)
-    display.fillRect(0, 196, 128, 100, GxEPD_WHITE);
+    // Right third - White (already filled, but showing for clarity)
+    display.fillRect(196, 0, 100, 128, GxEPD_WHITE);
     
     // Draw some patterns to make it more interesting
     for (int i = 0; i < 128; i += 8) {
-      display.fillRect(i, 30, 4, 4, GxEPD_RED);
-      display.fillRect(i, 130, 4, 4, GxEPD_BLACK);
-      display.fillRect(i, 230, 4, 4, GxEPD_BLACK);
+      display.fillRect(30, i, 4, 4, GxEPD_RED);
+      display.fillRect(130, i, 4, 4, GxEPD_BLACK);
+      display.fillRect(230, i, 4, 4, GxEPD_BLACK);
     }
   }
   while (display.nextPage());
