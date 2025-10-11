@@ -18,8 +18,8 @@
 // NOTE: you may need to adapt or select for your wiring in the processor specific conditional compile sections below
 
 // select the display class (only one), matching the kind of display panel
-#define GxEPD2_DISPLAY_CLASS GxEPD2_BW
-//#define GxEPD2_DISPLAY_CLASS GxEPD2_3C
+//#define GxEPD2_DISPLAY_CLASS GxEPD2_BW
+#define GxEPD2_DISPLAY_CLASS GxEPD2_3C
 //#define GxEPD2_DISPLAY_CLASS GxEPD2_4C
 //#define GxEPD2_DISPLAY_CLASS GxEPD2_7C
 
