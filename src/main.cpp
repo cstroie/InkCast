@@ -245,7 +245,7 @@ bool displayRandomPBM() {
   
 #elif defined(ESP8266)
   dir = SPIFFS.openDir("/");
-  currentIndex = 0;
+  int currentIndex = 0;
   String selectedFile;
   
   while (dir.next()) {
