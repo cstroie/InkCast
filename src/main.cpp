@@ -29,6 +29,9 @@
 #include <GxEPD2_7C.h>
 #include <Fonts/FreeMonoBold12pt7b.h>
 
+// Include configuration file (rename config.tpl to config.h)
+#include "config.h"
+
 #if defined(ESP32)
 #include "SPIFFS.h"
 #elif defined(ESP8266)
