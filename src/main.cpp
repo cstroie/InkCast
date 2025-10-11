@@ -32,25 +32,32 @@
 // select the display class and display driver class in the following file (new style):
 #include "display.h"
 
-const char HelloWorld[] = "Mama are mere";
-
-void helloWorld()
-{
-  display.setRotation(1);
-  display.setFont(&FreeMonoBold12pt7b);
-  display.setTextColor(GxEPD_RED);
-  int16_t tbx, tby; uint16_t tbw, tbh;
-  display.getTextBounds(HelloWorld, 0, 0, &tbx, &tby, &tbw, &tbh);
-  // center the bounding box by transposition of the origin:
-  uint16_t x = ((display.width() - tbw) / 2) - tbx;
-  uint16_t y = ((display.height() - tbh) / 2) - tby;
+// Create a simple 128x296 test image with black, white, and red pixels
+void displayImage() {
+  display.setRotation(1); // Set rotation to match display orientation
   display.setFullWindow();
   display.firstPage();
   do
   {
+    // Fill background with white
     display.fillScreen(GxEPD_WHITE);
-    display.setCursor(x, y);
-    display.print(HelloWorld);
+    
+    // Draw some colored rectangles to demonstrate all three colors
+    // Top third - Black
+    display.fillRect(0, 0, 128, 98, GxEPD_BLACK);
+    
+    // Middle third - Red
+    display.fillRect(0, 98, 128, 98, GxEPD_RED);
+    
+    // Bottom third - White (already filled, but showing for clarity)
+    display.fillRect(0, 196, 128, 100, GxEPD_WHITE);
+    
+    // Draw some patterns to make it more interesting
+    for (int i = 0; i < 128; i += 8) {
+      display.fillRect(i, 30, 4, 4, GxEPD_RED);
+      display.fillRect(i, 130, 4, 4, GxEPD_BLACK);
+      display.fillRect(i, 230, 4, 4, GxEPD_BLACK);
+    }
   }
   while (display.nextPage());
 }
@@ -59,7 +66,7 @@ void setup()
 {
   //display.init(115200); // default 10ms reset pulse, e.g. for bare panels with DESPI-C02
   display.init(115200, true, 2, false); // USE THIS for Waveshare boards with "clever" reset circuit, 2ms reset pulse
-  helloWorld();
+  displayImage(); // Display the image instead of text
   display.hibernate();
 }
 
