@@ -61,17 +61,19 @@ void listPBMFiles() {
     
 #if defined(ESP32)
     File root = SPIFFS.open("/");
-    File file = root.openNextFile();
-    while (file) {
-      String fileName = file.name();
-      if (fileName.endsWith(".pbm")) {
-        display.setCursor(20, yPosition);
-        display.print(fileName.c_str());
-        yPosition += 20;
+    if (root) {
+      File file = root.openNextFile();
+      while (file) {
+        String fileName = file.name();
+        if (fileName.endsWith(".pbm")) {
+          display.setCursor(20, yPosition);
+          display.print(fileName.c_str());
+          yPosition += 20;
+        }
+        file = root.openNextFile();
       }
-      file = root.openNextFile();
+      root.close();
     }
-    root.close();
 #elif defined(ESP8266)
     Dir dir = SPIFFS.openDir("/");
     while (dir.next()) {
