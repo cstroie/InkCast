@@ -49,7 +49,16 @@
 #include <Fonts/FreeMonoBold12pt7b.h>
 
 // Include configuration file (rename config.tpl to config.h)
-#include "config.h"
+#ifdef __has_include
+  #if __has_include("config.h")
+    #include "config.h"
+    #define CONFIG_LOADED 1
+  #else
+    #define CONFIG_LOADED 0
+  #endif
+#else
+  #define CONFIG_LOADED 0
+#endif
 
 // Include filesystem support
 #if defined(ESP32)
@@ -387,6 +396,7 @@ void setup() {
   // Initialize random seed
   randomSeed(analogRead(0)); 
   
+#if CONFIG_LOADED
   // Connect to WiFi
   Serial.println("Connecting to WiFi...");
   WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
@@ -424,6 +434,33 @@ void setup() {
   Serial.println("Connected to WiFi");
   Serial.print("IP Address: ");
   Serial.println(WiFi.localIP());
+#else
+  Serial.println("Configuration file not found. Please rename src/config.tpl to src/config.h and update with your settings.");
+  // Display config error with technical font
+  display.setRotation(1);
+  display.setFullWindow();
+  display.firstPage();
+  do
+  {
+    display.fillScreen(GxEPD_WHITE);
+    display.setFont(&FreeMonoBold12pt7b);
+    display.setCursor(20, 30);
+    display.print("Config File Missing");
+    display.setCursor(20, 60);
+    display.print("Rename config.tpl");
+    display.setCursor(20, 90);
+    display.print("to config.h and");
+    display.setCursor(20, 120);
+    display.print("update settings");
+  }
+  while (display.nextPage());
+  display.hibernate();
+#if defined(ESP8266)
+  // Go to deep sleep
+  ESP.deepSleep(0); 
+#endif
+  return;
+#endif
   
   // default 10ms reset pulse, e.g. for bare panels with DESPI-C02
   //display.init(115200); 
@@ -461,6 +498,7 @@ void setup() {
     // No PBM files found, try to fetch image from server
     bool imageFetched = false;
     
+#if CONFIG_LOADED
 #if defined(ESP32)
     Serial.println("Fetching image from server...");
     HTTPClient http;
@@ -628,33 +666,36 @@ void setup() {
     }
     http.end();
 #endif
-    
+#else // CONFIG_LOADED
     // If we couldn't fetch an image from the server, display instructions
-    if (!imageFetched) {
-      display.setRotation(1);
-      display.setFullWindow();
-      display.firstPage();
-      do
-      {
-        display.fillScreen(GxEPD_WHITE);
-        display.setFont(&FreeMonoBold12pt7b);
-        display.setCursor(20, 30);
-        display.print("No PBM Files Found");
-        display.setCursor(20, 60);
-        display.print("Please add PBM files");
-        display.setCursor(20, 90);
-        display.print("to SPIFFS or check");
-        display.setCursor(20, 120);
-        display.print("server connectivity");
-      }
-      while (display.nextPage());
+    display.setRotation(1);
+    display.setFullWindow();
+    display.firstPage();
+    do
+    {
+      display.fillScreen(GxEPD_WHITE);
+      display.setFont(&FreeMonoBold12pt7b);
+      display.setCursor(20, 30);
+      display.print("No PBM Files Found");
+      display.setCursor(20, 60);
+      display.print("Please add PBM files");
+      display.setCursor(20, 90);
+      display.print("to SPIFFS or check");
+      display.setCursor(20, 120);
+      display.print("server connectivity");
     }
+    while (display.nextPage());
+#endif // CONFIG_LOADED
   }
   display.hibernate();
   
 #if defined(ESP8266)
   // Go to deep sleep
+#if CONFIG_LOADED
   ESP.deepSleep(DEEP_SLEEP_DURATION); 
+#else
+  ESP.deepSleep(0); 
+#endif
 #endif
 }
 
