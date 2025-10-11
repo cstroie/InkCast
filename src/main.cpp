@@ -369,14 +369,16 @@ void setup() {
   randomSeed(analogRead(0)); 
   
   // Connect to WiFi
+  Serial.println("Connecting to WiFi...");
   WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
-  Serial.print("Connecting to WiFi");
+  Serial.print("Connecting");
   int attempts = 0;
   while (WiFi.status() != WL_CONNECTED && attempts < 20) {
     delay(500);
     Serial.print(".");
     attempts++;
   }
+  Serial.println();
   
   if (WiFi.status() != WL_CONNECTED) {
     Serial.println("Failed to connect to WiFi");
@@ -401,6 +403,8 @@ void setup() {
   }
   
   Serial.println("Connected to WiFi");
+  Serial.print("IP Address: ");
+  Serial.println(WiFi.localIP());
   
   // default 10ms reset pulse, e.g. for bare panels with DESPI-C02
   //display.init(115200); 
@@ -439,11 +443,13 @@ void setup() {
     bool imageFetched = false;
     
 #if defined(ESP32)
+    Serial.println("Fetching image from server...");
     HTTPClient http;
     http.begin(SERVER_URL);
     int httpCode = http.GET();
     
     if (httpCode == HTTP_CODE_OK) {
+      Serial.println("Image downloaded successfully");
       WiFiClient *stream = http.getStreamPtr();
       
       // Skip PBM header (P4 format for binary)
@@ -519,6 +525,7 @@ void setup() {
     http.end();
     
 #elif defined(ESP8266)
+    Serial.println("Fetching image from server...");
     WiFiClientSecure client;
     client.setInsecure(); // Skip certificate verification for simplicity
     
@@ -527,6 +534,7 @@ void setup() {
     int httpCode = http.GET();
     
     if (httpCode == HTTP_CODE_OK) {
+      Serial.println("Image downloaded successfully");
       WiFiClient *stream = http.getStreamPtr();
       
       // Skip PBM header (P4 format for binary)
