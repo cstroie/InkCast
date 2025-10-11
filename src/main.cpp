@@ -32,6 +32,7 @@
 // Include configuration file (rename config.tpl to config.h)
 #include "config.h"
 
+// Include filesystem support
 #if defined(ESP32)
 #include "SPIFFS.h"
 #elif defined(ESP8266)
