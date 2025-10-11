@@ -361,6 +361,9 @@ void setup() {
 #endif
     displayHelloWorld(); // Display "Hello World" if SPIFFS fails
     display.hibernate();
+#if defined(ESP8266)
+    ESP.deepSleep(0); // Go to deep sleep
+#endif
     return;
   }
   
@@ -370,6 +373,10 @@ void setup() {
   }
   
   display.hibernate();
+  
+#if defined(ESP8266)
+  ESP.deepSleep(0); // Go to deep sleep
+#endif
 }
 
 void loop() {};
