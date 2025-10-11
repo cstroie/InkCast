@@ -110,10 +110,11 @@ void displayImage() {
   while (display.nextPage());
 }
 
-void setup()
-{
-  //display.init(115200); // default 10ms reset pulse, e.g. for bare panels with DESPI-C02
-  display.init(115200, true, 2, false); // USE THIS for Waveshare boards with "clever" reset circuit, 2ms reset pulse
+void setup() {
+  // default 10ms reset pulse, e.g. for bare panels with DESPI-C02
+  //display.init(115200); 
+  // USE THIS for Waveshare boards with "clever" reset circuit, 2ms reset pulse
+  display.init(115200, true, 2, false);
   
   // Initialize SPIFFS
 #if defined(ESP32)
