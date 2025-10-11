@@ -187,7 +187,7 @@ void setup()
   // }
   
   // Try to fetch and display the PBM image
-  if (!fetchAndDisplayPBM("http://eridu.eu.org/test.pbm")) {
+  if (!fetchAndDisplayPBM("https://eridu.eu.org/test.pbm")) {
     displayImage(); // Fallback to the original bitmap if fetch fails
   }
   #else
