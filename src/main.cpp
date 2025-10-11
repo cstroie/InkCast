@@ -32,23 +32,6 @@
 // select the display class and display driver class in the following file (new style):
 #include "display.h"
 
-// alternately you can copy the constructor from GxEPD2_display_selection.h or GxEPD2_display_selection_added.h to here
-// e.g. for Wemos D1 mini:
-//GxEPD2_BW<GxEPD2_154_D67, GxEPD2_154_D67::HEIGHT> display(GxEPD2_154_D67(/*CS=D8*/ SS, /*DC=D3*/ 0, /*RST=D4*/ 2, /*BUSY=D2*/ 4)); // GDEH0154D67
-
-// for handling alternative SPI pins (ESP32, RP2040) see example GxEPD2_Example.ino
-
-// Function declaration
-void helloWorld();
-
-void setup()
-{
-  //display.init(115200); // default 10ms reset pulse, e.g. for bare panels with DESPI-C02
-  display.init(115200, true, 2, false); // USE THIS for Waveshare boards with "clever" reset circuit, 2ms reset pulse
-  helloWorld();
-  display.hibernate();
-}
-
 const char HelloWorld[] = "Mama are mere";
 
 void helloWorld()
@@ -70,6 +53,14 @@ void helloWorld()
     display.print(HelloWorld);
   }
   while (display.nextPage());
+}
+
+void setup()
+{
+  //display.init(115200); // default 10ms reset pulse, e.g. for bare panels with DESPI-C02
+  display.init(115200, true, 2, false); // USE THIS for Waveshare boards with "clever" reset circuit, 2ms reset pulse
+  helloWorld();
+  display.hibernate();
 }
 
 void loop() {};
