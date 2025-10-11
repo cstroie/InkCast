@@ -433,7 +433,7 @@ bool displayRandomPBM() {
   do
   {
     display.fillScreen(GxEPD_WHITE);
-    display.drawBitmap(0, 0, buffer, 296, 128, GxEPD_BLACK);
+    display.drawBitmap(0, 0, buffer, 296, 128, GxEPD_RED);
   }
   while (display.nextPage());
   Serial.println("Image displayed successfully");
@@ -628,7 +628,7 @@ void setup() {
           do
           {
             display.fillScreen(GxEPD_WHITE);
-            display.drawBitmap(0, 0, buffer, 296, 128, GxEPD_BLACK);
+            display.drawBitmap(0, 0, buffer, 296, 128, GxEPD_RED);
           }
           while (display.nextPage());
           
@@ -713,7 +713,7 @@ void setup() {
           do
           {
             display.fillScreen(GxEPD_WHITE);
-            display.drawBitmap(0, 0, buffer, 296, 128, GxEPD_BLACK);
+            display.drawBitmap(0, 0, buffer, 296, 128, GxEPD_RED);
           }
           while (display.nextPage());
           
