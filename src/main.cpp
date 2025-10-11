@@ -92,14 +92,14 @@ void displayImage() {
     display.fillScreen(GxEPD_WHITE);
     
     // Draw the bitmap centered on the display
-    int x = (display.width() - 20) / 2;
-    int y = (display.height() - 20) / 2;
-    
+    int x = (display.width() - 32) / 2;
+    int y = (display.height() - 32) / 2;
+
     // Draw the bitmap with black/white pixels
-    display.drawBitmap(x, y, bitmap_data, 20, 20, GxEPD_BLACK);
-    
+    display.drawBitmap(x+40, y, bitmap_data, 32, 32, GxEPD_BLACK);
+
     // Draw the color overlay for red pixels
-    display.drawBitmap(x, y, color_data, 20, 20, GxEPD_RED);
+    display.drawBitmap(x-40, y, color_data, 32, 32, GxEPD_RED);
   }
   while (display.nextPage());
 }
