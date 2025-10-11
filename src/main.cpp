@@ -359,7 +359,18 @@ void setup() {
 #elif defined(ESP8266)
   if (!SPIFFS.begin()) {
 #endif
-    displayHelloWorld(); // Display "Hello World" if SPIFFS fails
+    // Display SPIFFS error with technical font
+    display.setRotation(1);
+    display.setFullWindow();
+    display.firstPage();
+    do
+    {
+      display.fillScreen(GxEPD_WHITE);
+      display.setFont(&FreeMonoBold12pt7b);
+      display.setCursor(20, 50);
+      display.print("SPIFFS Mount Failed");
+    }
+    while (display.nextPage());
     display.hibernate();
 #if defined(ESP8266)
     ESP.deepSleep(0); // Go to deep sleep
