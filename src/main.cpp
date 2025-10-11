@@ -373,16 +373,17 @@ void setup() {
     while (display.nextPage());
     display.hibernate();
 #if defined(ESP8266)
-    ESP.deepSleep(0); // Go to deep sleep
+    // Go to deep sleep
+    ESP.deepSleep(0); 
 #endif
     return;
   }
   
   // Try to display a random PBM file, fallback to "Hello World" if none found
   if (!displayRandomPBM()) {
-    displayHelloWorld(); // Display "Hello World" if no PBM files found
+    // No PBM files found, list available files and display "Hello World"
+    displayHelloWorld(); 
   }
-  
   display.hibernate();
   
 #if defined(ESP8266)
