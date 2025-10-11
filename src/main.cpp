@@ -52,15 +52,9 @@ void displayImage() {
     // Fill background with white
     display.fillScreen(GxEPD_WHITE);
     
-    // Draw the bitmap centered on the display
-    int x = (display.width() - 32) / 2;
-    int y = (display.height() - 32) / 2;
-
-    // Draw the bitmap with black/white pixels
-    display.drawBitmap(x+40, y, bitmap_data, 32, 32, GxEPD_BLACK);
-
-    // Draw the color overlay for red pixels
-    display.drawBitmap(x-40, y, color_data, 32, 32, GxEPD_RED);
+    // Display a simple message instead
+    display.setCursor(20, 50);
+    display.print("PBM Image Loader");
   }
   while (display.nextPage());
 }
