@@ -35,6 +35,8 @@
 #include "FS.h"
 #endif
 
+#include <stdlib.h>
+
 // select the display class and display driver class in the following file (new style):
 #include "display.h"
 
@@ -105,14 +107,268 @@ void displayHelloWorld() {
   while (display.nextPage());
 }
 
+bool displayRandomPBM() {
+  // Count PBM files
+  int fileCount = 0;
+  
+#if defined(ESP32)
+  File root = SPIFFS.open("/");
+  if (!root) return false;
+  
+  File file = root.openNextFile();
+  while (file) {
+    String fileName = file.name();
+    if (fileName.endsWith(".pbm")) {
+      fileCount++;
+    }
+    file = root.openNextFile();
+  }
+  root.close();
+#elif defined(ESP8266)
+  Dir dir = SPIFFS.openDir("/");
+  while (dir.next()) {
+    String fileName = dir.fileName();
+    if (fileName.endsWith(".pbm")) {
+      fileCount++;
+    }
+  }
+#endif
+
+  if (fileCount == 0) return false;
+
+  // Select a random file
+  int randomIndex = random(fileCount);
+  
+#if defined(ESP32)
+  root = SPIFFS.open("/");
+  if (!root) return false;
+  
+  file = root.openNextFile();
+  int currentIndex = 0;
+  String selectedFile;
+  
+  while (file) {
+    String fileName = file.name();
+    if (fileName.endsWith(".pbm")) {
+      if (currentIndex == randomIndex) {
+        selectedFile = fileName;
+        break;
+      }
+      currentIndex++;
+    }
+    file = root.openNextFile();
+  }
+  root.close();
+  
+  if (selectedFile.isEmpty()) return false;
+  
+  // Open the selected file
+  File pbmFile = SPIFFS.open(selectedFile, "r");
+  if (!pbmFile) return false;
+  
+  // Skip PBM header (P4 format for binary)
+  char header[2];
+  pbmFile.readBytes(header, 2); // Read "P4"
+  
+  // Skip comments and whitespace
+  while (pbmFile.available()) {
+    char c = pbmFile.read();
+    if (c == '#') {
+      // Skip comment line
+      while (pbmFile.available() && pbmFile.read() != '\n');
+    } else if (c == ' ' || c == '\t' || c == '\n' || c == '\r') {
+      continue;
+    } else {
+      // Put back the character by seeking back
+      pbmFile.seek(pbmFile.position() - 1);
+      break;
+    }
+  }
+  
+  // Skip width and height (we know it's 296x128)
+  while (pbmFile.available()) {
+    char c = pbmFile.read();
+    if (c == ' ' || c == '\n' || c == '\r') {
+      // Skip whitespace after numbers
+      continue;
+    } else if (c >= '0' && c <= '9') {
+      // Skip digits
+      continue;
+    } else {
+      // Put back the character
+      pbmFile.seek(pbmFile.position() - 1);
+      break;
+    }
+  }
+  
+  // Skip any remaining whitespace
+  while (pbmFile.available()) {
+    char c = pbmFile.read();
+    if (c != ' ' && c != '\t' && c != '\n' && c != '\r') {
+      // Put back the character
+      pbmFile.seek(pbmFile.position() - 1);
+      break;
+    }
+  }
+  
+  // Calculate buffer size (1 bit per pixel for 296x128)
+  int bufferSize = (296 * 128 + 7) / 8; // 4736 bytes
+  uint8_t* buffer = (uint8_t*)malloc(bufferSize);
+  
+  if (!buffer) {
+    pbmFile.close();
+    return false;
+  }
+  
+  // Read image data
+  int bytesRead = pbmFile.readBytes((char*)buffer, bufferSize);
+  pbmFile.close();
+  
+  if (bytesRead != bufferSize) {
+    free(buffer);
+    return false;
+  }
+  
+  // Display the image
+  display.setRotation(1);
+  display.setFullWindow();
+  display.firstPage();
+  do
+  {
+    display.fillScreen(GxEPD_WHITE);
+    display.drawBitmap(0, 0, buffer, 296, 128, GxEPD_BLACK);
+  }
+  while (display.nextPage());
+  
+  free(buffer);
+  return true;
+  
+#elif defined(ESP8266)
+  dir = SPIFFS.openDir("/");
+  currentIndex = 0;
+  String selectedFile;
+  
+  while (dir.next()) {
+    String fileName = dir.fileName();
+    if (fileName.endsWith(".pbm")) {
+      if (currentIndex == randomIndex) {
+        selectedFile = fileName;
+        break;
+      }
+      currentIndex++;
+    }
+  }
+  
+  if (selectedFile.isEmpty()) return false;
+  
+  // Open the selected file
+  File pbmFile = SPIFFS.open(selectedFile, "r");
+  if (!pbmFile) return false;
+  
+  // Skip PBM header (P4 format for binary)
+  char header[2];
+  pbmFile.readBytes(header, 2); // Read "P4"
+  
+  // Skip comments and whitespace
+  while (pbmFile.available()) {
+    char c = pbmFile.read();
+    if (c == '#') {
+      // Skip comment line
+      while (pbmFile.available() && pbmFile.read() != '\n');
+    } else if (c == ' ' || c == '\t' || c == '\n' || c == '\r') {
+      continue;
+    } else {
+      // Put back the character by seeking back
+      pbmFile.seek(pbmFile.position() - 1);
+      break;
+    }
+  }
+  
+  // Skip width and height (we know it's 296x128)
+  while (pbmFile.available()) {
+    char c = pbmFile.read();
+    if (c == ' ' || c == '\n' || c == '\r') {
+      // Skip whitespace after numbers
+      continue;
+    } else if (c >= '0' && c <= '9') {
+      // Skip digits
+      continue;
+    } else {
+      // Put back the character
+      pbmFile.seek(pbmFile.position() - 1);
+      break;
+    }
+  }
+  
+  // Skip any remaining whitespace
+  while (pbmFile.available()) {
+    char c = pbmFile.read();
+    if (c != ' ' && c != '\t' && c != '\n' && c != '\r') {
+      // Put back the character
+      pbmFile.seek(pbmFile.position() - 1);
+      break;
+    }
+  }
+  
+  // Calculate buffer size (1 bit per pixel for 296x128)
+  int bufferSize = (296 * 128 + 7) / 8; // 4736 bytes
+  uint8_t* buffer = (uint8_t*)malloc(bufferSize);
+  
+  if (!buffer) {
+    pbmFile.close();
+    return false;
+  }
+  
+  // Read image data
+  int bytesRead = pbmFile.readBytes((char*)buffer, bufferSize);
+  pbmFile.close();
+  
+  if (bytesRead != bufferSize) {
+    free(buffer);
+    return false;
+  }
+  
+  // Display the image
+  display.setRotation(1);
+  display.setFullWindow();
+  display.firstPage();
+  do
+  {
+    display.fillScreen(GxEPD_WHITE);
+    display.drawBitmap(0, 0, buffer, 296, 128, GxEPD_BLACK);
+  }
+  while (display.nextPage());
+  
+  free(buffer);
+  return true;
+#endif
+}
+
 void setup() {
   Serial.begin(115200);
+  randomSeed(analogRead(0)); // Initialize random seed
+  
   // default 10ms reset pulse, e.g. for bare panels with DESPI-C02
   //display.init(115200); 
   // USE THIS for Waveshare boards with "clever" reset circuit, 2ms reset pulse
   display.init(115200, true, 2, false);
   
-  displayHelloWorld(); // Display "Hello World" message
+  // Initialize SPIFFS
+#if defined(ESP32)
+  if (!SPIFFS.begin(true)) {
+#elif defined(ESP8266)
+  if (!SPIFFS.begin()) {
+#endif
+    displayHelloWorld(); // Display "Hello World" if SPIFFS fails
+    display.hibernate();
+    return;
+  }
+  
+  // Try to display a random PBM file, fallback to "Hello World" if none found
+  if (!displayRandomPBM()) {
+    displayHelloWorld(); // Display "Hello World" if no PBM files found
+  }
+  
   display.hibernate();
 }
 
