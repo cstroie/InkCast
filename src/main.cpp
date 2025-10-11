@@ -375,7 +375,8 @@ void setup() {
   display.hibernate();
   
 #if defined(ESP8266)
-  ESP.deepSleep(0); // Go to deep sleep
+  // Go to deep sleep
+  ESP.deepSleep(0); 
 #endif
 }
 
