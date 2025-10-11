@@ -46,6 +46,14 @@
 #include <ESP8266WiFi.h>
 #endif
 
+// Include HTTP client support
+#if defined(ESP32)
+#include <HTTPClient.h>
+#elif defined(ESP8266)
+#include <ESP8266HTTPClient.h>
+#include <WiFiClientSecure.h>
+#endif
+
 #include <stdlib.h>
 
 // select the display class and display driver class in the following file (new style):
@@ -427,30 +435,199 @@ void setup() {
   
   // Try to display a random PBM file, fallback to "Hello World" if none found
   if (!displayRandomPBM()) {
-    // No PBM files found, display instructions
-    display.setRotation(1);
-    display.setFullWindow();
-    display.firstPage();
-    do
-    {
-      display.fillScreen(GxEPD_WHITE);
-      display.setFont(&FreeMonoBold12pt7b);
-      display.setCursor(20, 30);
-      display.print("No PBM Files Found");
-      display.setCursor(20, 60);
-      display.print("Please add PBM files");
-      display.setCursor(20, 90);
-      display.print("to SPIFFS.");
-      display.setCursor(20, 120);
-      display.print("Format: 296x128 1-bit");
+    // No PBM files found, try to fetch image from server
+    bool imageFetched = false;
+    
+#if defined(ESP32)
+    HTTPClient http;
+    http.begin(SERVER_URL);
+    int httpCode = http.GET();
+    
+    if (httpCode == HTTP_CODE_OK) {
+      WiFiClient *stream = http.getStreamPtr();
+      
+      // Skip PBM header (P4 format for binary)
+      char header[2];
+      stream->readBytes(header, 2); // Read "P4"
+      
+      // Skip comments and whitespace
+      while (stream->available()) {
+        char c = stream->read();
+        if (c == '#') {
+          // Skip comment line
+          while (stream->available() && stream->read() != '\n');
+        } else if (c == ' ' || c == '\t' || c == '\n' || c == '\r') {
+          continue;
+        } else {
+          // Put back the character
+          stream->peek();
+          break;
+        }
+      }
+      
+      // Skip width and height (we know it's 296x128)
+      while (stream->available()) {
+        char c = stream->read();
+        if (c == ' ' || c == '\n' || c == '\r') {
+          // Skip whitespace after numbers
+          continue;
+        } else if (c >= '0' && c <= '9') {
+          // Skip digits
+          continue;
+        } else {
+          // Put back the character
+          stream->peek();
+          break;
+        }
+      }
+      
+      // Skip any remaining whitespace
+      while (stream->available()) {
+        char c = stream->read();
+        if (c != ' ' && c != '\t' && c != '\n' && c != '\r') {
+          // Put back the character
+          stream->peek();
+          break;
+        }
+      }
+      
+      // Calculate buffer size (1 bit per pixel for 296x128)
+      int bufferSize = (296 * 128 + 7) / 8; // 4736 bytes
+      uint8_t* buffer = (uint8_t*)malloc(bufferSize);
+      
+      if (buffer) {
+        // Read image data
+        int bytesRead = stream->readBytes(buffer, bufferSize);
+        
+        if (bytesRead == bufferSize) {
+          // Display the image
+          display.setRotation(1);
+          display.setFullWindow();
+          display.firstPage();
+          do
+          {
+            display.fillScreen(GxEPD_WHITE);
+            display.drawBitmap(0, 0, buffer, 296, 128, GxEPD_BLACK);
+          }
+          while (display.nextPage());
+          
+          imageFetched = true;
+        }
+        free(buffer);
+      }
     }
-    while (display.nextPage());
+    http.end();
+    
+#elif defined(ESP8266)
+    WiFiClientSecure client;
+    client.setInsecure(); // Skip certificate verification for simplicity
+    
+    HTTPClient http;
+    http.begin(client, SERVER_URL);
+    int httpCode = http.GET();
+    
+    if (httpCode == HTTP_CODE_OK) {
+      WiFiClient *stream = http.getStreamPtr();
+      
+      // Skip PBM header (P4 format for binary)
+      char header[2];
+      stream->readBytes(header, 2); // Read "P4"
+      
+      // Skip comments and whitespace
+      while (stream->available()) {
+        char c = stream->read();
+        if (c == '#') {
+          // Skip comment line
+          while (stream->available() && stream->read() != '\n');
+        } else if (c == ' ' || c == '\t' || c == '\n' || c == '\r') {
+          continue;
+        } else {
+          // Put back the character
+          stream->peek();
+          break;
+        }
+      }
+      
+      // Skip width and height (we know it's 296x128)
+      while (stream->available()) {
+        char c = stream->read();
+        if (c == ' ' || c == '\n' || c == '\r') {
+          // Skip whitespace after numbers
+          continue;
+        } else if (c >= '0' && c <= '9') {
+          // Skip digits
+          continue;
+        } else {
+          // Put back the character
+          stream->peek();
+          break;
+        }
+      }
+      
+      // Skip any remaining whitespace
+      while (stream->available()) {
+        char c = stream->read();
+        if (c != ' ' && c != '\t' && c != '\n' && c != '\r') {
+          // Put back the character
+          stream->peek();
+          break;
+        }
+      }
+      
+      // Calculate buffer size (1 bit per pixel for 296x128)
+      int bufferSize = (296 * 128 + 7) / 8; // 4736 bytes
+      uint8_t* buffer = (uint8_t*)malloc(bufferSize);
+      
+      if (buffer) {
+        // Read image data
+        int bytesRead = stream->readBytes(buffer, bufferSize);
+        
+        if (bytesRead == bufferSize) {
+          // Display the image
+          display.setRotation(1);
+          display.setFullWindow();
+          display.firstPage();
+          do
+          {
+            display.fillScreen(GxEPD_WHITE);
+            display.drawBitmap(0, 0, buffer, 296, 128, GxEPD_BLACK);
+          }
+          while (display.nextPage());
+          
+          imageFetched = true;
+        }
+        free(buffer);
+      }
+    }
+    http.end();
+#endif
+    
+    // If we couldn't fetch an image from the server, display instructions
+    if (!imageFetched) {
+      display.setRotation(1);
+      display.setFullWindow();
+      display.firstPage();
+      do
+      {
+        display.fillScreen(GxEPD_WHITE);
+        display.setFont(&FreeMonoBold12pt7b);
+        display.setCursor(20, 30);
+        display.print("No PBM Files Found");
+        display.setCursor(20, 60);
+        display.print("Please add PBM files");
+        display.setCursor(20, 90);
+        display.print("to SPIFFS or check");
+        display.setCursor(20, 120);
+        display.print("server connectivity");
+      }
+      while (display.nextPage());
+    }
   }
   display.hibernate();
   
 #if defined(ESP8266)
   // Go to deep sleep
-  ESP.deepSleep(0); 
+  ESP.deepSleep(DEEP_SLEEP_DURATION); 
 #endif
 }
 
