@@ -61,8 +61,9 @@ void displayImage() {
 
 bool fetchAndDisplayPBM(const char* url) {
   #if defined(ESP32) || defined(ESP8266)
+  WiFiClient client;
   HTTPClient http;
-  http.begin(url);
+  http.begin(client, url);
   int httpCode = http.GET();
   
   if (httpCode != HTTP_CODE_OK) {
