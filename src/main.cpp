@@ -38,6 +38,9 @@
 
 // for handling alternative SPI pins (ESP32, RP2040) see example GxEPD2_Example.ino
 
+// Function declaration
+void helloWorld();
+
 void setup()
 {
   //display.init(115200); // default 10ms reset pulse, e.g. for bare panels with DESPI-C02
