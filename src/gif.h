@@ -26,9 +26,6 @@
 // Forward declaration of display object
 extern GxEPD2_3C<GxEPD2_290_C90c, 296> display;
 
-// Function declarations for GIF handling
-bool displayGIFFile(const char* filename);
-
 // Display GIF file using TJpg_Decoder
 bool displayGIFFile(const char* filename) {
   // Initialize TJpg_Decoder
