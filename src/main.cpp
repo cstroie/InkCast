@@ -48,6 +48,7 @@
 #include <GxEPD2_7C.h>
 #include <Fonts/FreeMonoBold12pt7b.h>
 #include <TJpg_Decoder.h>
+#include "pbm.h"
 
 // Include configuration file (rename config.tpl to config.h)
 #if defined(__has_include)
@@ -247,65 +248,13 @@ bool displayRandomImage() {
     }
     Serial.println("Successfully opened file: " + selectedFile);
     
-    // Skip PBM header (P4 format for binary)
-    char header[2];
-    pbmFile.readBytes(header, 2); // Read "P4"
-    Serial.println("Read PBM header: " + String(header[0]) + String(header[1]));
-    
-    // Skip comments and whitespace
-    while (pbmFile.available()) {
-      char c = pbmFile.read();
-      if (c == '#') {
-        // Skip comment line
-        while (pbmFile.available() && pbmFile.read() != '\n');
-      } else if (c == ' ' || c == '\t' || c == '\n' || c == '\r') {
-        continue;
-      } else {
-        // Put back the character by seeking back
-        pbmFile.seek(pbmFile.position() - 1);
-        break;
-      }
-    }
-    
-    // Parse width and height from PBM header
+    // Parse PBM header to get image dimensions
     int width = 0, height = 0;
-    
-    // Skip whitespace and read width
-    while (pbmFile.available()) {
-      char c = pbmFile.read();
-      if (c >= '0' && c <= '9') {
-        width = width * 10 + (c - '0');
-      } else if (c == ' ' || c == '\t' || c == '\n' || c == '\r') {
-        if (width > 0) break; // We've read the width
-      } else if (c == '#') {
-        // Skip comment line
-        while (pbmFile.available() && pbmFile.read() != '\n');
-      }
+    if (!parsePBMHeader(&pbmFile, width, height)) {
+      Serial.println("Failed to parse PBM header");
+      pbmFile.close();
+      return false;
     }
-    
-    // Skip whitespace and read height
-    while (pbmFile.available()) {
-      char c = pbmFile.read();
-      if (c >= '0' && c <= '9') {
-        height = height * 10 + (c - '0');
-      } else if (c == ' ' || c == '\t' || c == '\n' || c == '\r') {
-        if (height > 0) break; // We've read the height
-      } else if (c == '#') {
-        // Skip comment line
-        while (pbmFile.available() && pbmFile.read() != '\n');
-      }
-    }
-    
-    // Skip any remaining whitespace
-    while (pbmFile.available()) {
-      char c = pbmFile.read();
-      if (c != ' ' && c != '\t' && c != '\n' && c != '\r') {
-        // Put back the character
-        pbmFile.seek(pbmFile.position() - 1);
-        break;
-      }
-    }
-    
     Serial.println("Image dimensions: " + String(width) + "x" + String(height));
     
     // Calculate buffer size (1 bit per pixel)
@@ -322,15 +271,14 @@ bool displayRandomImage() {
     
     // Read image data
     Serial.println("Reading image data...");
-    int bytesRead = pbmFile.readBytes((char*)buffer, bufferSize);
-    pbmFile.close();
-    Serial.println("Read " + String(bytesRead) + " bytes from file");
-    
-    if (bytesRead != bufferSize) {
-      Serial.println("Error: Expected " + String(bufferSize) + " bytes but read " + String(bytesRead));
+    if (!readPBMData(&pbmFile, buffer, width, height)) {
+      Serial.println("Failed to read PBM data");
+      pbmFile.close();
       free(buffer);
       return false;
     }
+    pbmFile.close();
+    Serial.println("Successfully read image data");
     
     // Display the image
     Serial.println("Displaying image on e-paper...");
@@ -425,65 +373,13 @@ bool displayRandomImage() {
     }
     Serial.println("Successfully opened file: " + selectedFile);
     
-    // Skip PBM header (P4 format for binary)
-    char header[2];
-    pbmFile.readBytes(header, 2); // Read "P4"
-    Serial.println("Read PBM header: " + String(header[0]) + String(header[1]));
-    
-    // Skip comments and whitespace
-    while (pbmFile.available()) {
-      char c = pbmFile.read();
-      if (c == '#') {
-        // Skip comment line
-        while (pbmFile.available() && pbmFile.read() != '\n');
-      } else if (c == ' ' || c == '\t' || c == '\n' || c == '\r') {
-        continue;
-      } else {
-        // Put back the character by seeking back
-        pbmFile.seek(pbmFile.position() - 1);
-        break;
-      }
-    }
-    
-    // Parse width and height from PBM header
+    // Parse PBM header to get image dimensions
     int width = 0, height = 0;
-    
-    // Skip whitespace and read width
-    while (pbmFile.available()) {
-      char c = pbmFile.read();
-      if (c >= '0' && c <= '9') {
-        width = width * 10 + (c - '0');
-      } else if (c == ' ' || c == '\t' || c == '\n' || c == '\r') {
-        if (width > 0) break; // We've read the width
-      } else if (c == '#') {
-        // Skip comment line
-        while (pbmFile.available() && pbmFile.read() != '\n');
-      }
+    if (!parsePBMHeader(&pbmFile, width, height)) {
+      Serial.println("Failed to parse PBM header");
+      pbmFile.close();
+      return false;
     }
-    
-    // Skip whitespace and read height
-    while (pbmFile.available()) {
-      char c = pbmFile.read();
-      if (c >= '0' && c <= '9') {
-        height = height * 10 + (c - '0');
-      } else if (c == ' ' || c == '\t' || c == '\n' || c == '\r') {
-        if (height > 0) break; // We've read the height
-      } else if (c == '#') {
-        // Skip comment line
-        while (pbmFile.available() && pbmFile.read() != '\n');
-      }
-    }
-    
-    // Skip any remaining whitespace
-    while (pbmFile.available()) {
-      char c = pbmFile.read();
-      if (c != ' ' && c != '\t' && c != '\n' && c != '\r') {
-        // Put back the character
-        pbmFile.seek(pbmFile.position() - 1);
-        break;
-      }
-    }
-    
     Serial.println("Image dimensions: " + String(width) + "x" + String(height));
     
     // Calculate buffer size (1 bit per pixel)
@@ -500,15 +396,14 @@ bool displayRandomImage() {
     
     // Read image data
     Serial.println("Reading image data...");
-    int bytesRead = pbmFile.readBytes((char*)buffer, bufferSize);
-    pbmFile.close();
-    Serial.println("Read " + String(bytesRead) + " bytes from file");
-    
-    if (bytesRead != bufferSize) {
-      Serial.println("Error: Expected " + String(bufferSize) + " bytes but read " + String(bytesRead));
+    if (!readPBMData(&pbmFile, buffer, width, height)) {
+      Serial.println("Failed to read PBM data");
+      pbmFile.close();
       free(buffer);
       return false;
     }
+    pbmFile.close();
+    Serial.println("Successfully read image data");
     
     // Display the image
     Serial.println("Displaying image on e-paper...");
@@ -735,60 +630,24 @@ void setup() {
       Serial.println("Image downloaded successfully");
       WiFiClient *stream = http.getStreamPtr();
       
-      // Skip PBM header (P4 format for binary)
-      char header[2];
-      stream->readBytes(header, 2); // Read "P4"
-      
-      // Skip comments and whitespace
-      while (stream->available()) {
-        char c = stream->read();
-        if (c == '#') {
-          // Skip comment line
-          while (stream->available() && stream->read() != '\n');
-        } else if (c == ' ' || c == '\t' || c == '\n' || c == '\r') {
-          continue;
-        } else {
-          // Put back the character
-          stream->peek();
-          break;
-        }
+      // Parse PBM header to get image dimensions
+      int width = 0, height = 0;
+      if (!parsePBMHeader(stream, width, height)) {
+        Serial.println("Failed to parse PBM header from server");
+        http.end();
+        return;
       }
       
-      // Skip width and height (we know it's 296x128)
-      while (stream->available()) {
-        char c = stream->read();
-        if (c == ' ' || c == '\n' || c == '\r') {
-          // Skip whitespace after numbers
-          continue;
-        } else if (c >= '0' && c <= '9') {
-          // Skip digits
-          continue;
-        } else {
-          // Put back the character
-          stream->peek();
-          break;
-        }
-      }
+      Serial.println("Image dimensions: " + String(width) + "x" + String(height));
       
-      // Skip any remaining whitespace
-      while (stream->available()) {
-        char c = stream->read();
-        if (c != ' ' && c != '\t' && c != '\n' && c != '\r') {
-          // Put back the character
-          stream->peek();
-          break;
-        }
-      }
-      
-      // Calculate buffer size (1 bit per pixel for 296x128)
-      int bufferSize = (296 * 128 + 7) / 8; // 4736 bytes
+      // Calculate buffer size (1 bit per pixel)
+      int bufferSize = (width * height + 7) / 8;
+      Serial.println("Allocating buffer of " + String(bufferSize) + " bytes");
       uint8_t* buffer = (uint8_t*)malloc(bufferSize);
       
       if (buffer) {
         // Read image data
-        int bytesRead = stream->readBytes(buffer, bufferSize);
-        
-        if (bytesRead == bufferSize) {
+        if (readPBMData(stream, buffer, width, height)) {
           // Display the image
           display.setRotation(1);
           display.setFullWindow();
@@ -796,13 +655,18 @@ void setup() {
           do
           {
             display.fillScreen(GxEPD_WHITE);
-            display.drawBitmap(0, 0, buffer, 296, 128, GxEPD_RED);
+            display.drawBitmap(0, 0, buffer, width, height, GxEPD_RED);
           }
           while (display.nextPage());
           
           imageFetched = true;
+          Serial.println("Image displayed successfully");
+        } else {
+          Serial.println("Failed to read PBM data from server");
         }
         free(buffer);
+      } else {
+        Serial.println("Failed to allocate memory for image buffer");
       }
     }
     http.end();
@@ -820,60 +684,24 @@ void setup() {
       Serial.println("Image downloaded successfully");
       WiFiClient *stream = http.getStreamPtr();
       
-      // Skip PBM header (P4 format for binary)
-      char header[2];
-      stream->readBytes(header, 2); // Read "P4"
-      
-      // Skip comments and whitespace
-      while (stream->available()) {
-        char c = stream->read();
-        if (c == '#') {
-          // Skip comment line
-          while (stream->available() && stream->read() != '\n');
-        } else if (c == ' ' || c == '\t' || c == '\n' || c == '\r') {
-          continue;
-        } else {
-          // Put back the character
-          stream->peek();
-          break;
-        }
+      // Parse PBM header to get image dimensions
+      int width = 0, height = 0;
+      if (!parsePBMHeader(stream, width, height)) {
+        Serial.println("Failed to parse PBM header from server");
+        http.end();
+        return;
       }
       
-      // Skip width and height (we know it's 296x128)
-      while (stream->available()) {
-        char c = stream->read();
-        if (c == ' ' || c == '\n' || c == '\r') {
-          // Skip whitespace after numbers
-          continue;
-        } else if (c >= '0' && c <= '9') {
-          // Skip digits
-          continue;
-        } else {
-          // Put back the character
-          stream->peek();
-          break;
-        }
-      }
+      Serial.println("Image dimensions: " + String(width) + "x" + String(height));
       
-      // Skip any remaining whitespace
-      while (stream->available()) {
-        char c = stream->read();
-        if (c != ' ' && c != '\t' && c != '\n' && c != '\r') {
-          // Put back the character
-          stream->peek();
-          break;
-        }
-      }
-      
-      // Calculate buffer size (1 bit per pixel for 296x128)
-      int bufferSize = (296 * 128 + 7) / 8; // 4736 bytes
+      // Calculate buffer size (1 bit per pixel)
+      int bufferSize = (width * height + 7) / 8;
+      Serial.println("Allocating buffer of " + String(bufferSize) + " bytes");
       uint8_t* buffer = (uint8_t*)malloc(bufferSize);
       
       if (buffer) {
         // Read image data
-        int bytesRead = stream->readBytes(buffer, bufferSize);
-        
-        if (bytesRead == bufferSize) {
+        if (readPBMData(stream, buffer, width, height)) {
           // Display the image
           display.setRotation(1);
           display.setFullWindow();
@@ -881,13 +709,18 @@ void setup() {
           do
           {
             display.fillScreen(GxEPD_WHITE);
-            display.drawBitmap(0, 0, buffer, 296, 128, GxEPD_RED);
+            display.drawBitmap(0, 0, buffer, width, height, GxEPD_RED);
           }
           while (display.nextPage());
           
           imageFetched = true;
+          Serial.println("Image displayed successfully");
+        } else {
+          Serial.println("Failed to read PBM data from server");
         }
         free(buffer);
+      } else {
+        Serial.println("Failed to allocate memory for image buffer");
       }
     }
     http.end();
