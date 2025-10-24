@@ -659,80 +659,69 @@ void fetchAndDisplayImage() {
 #endif // CONFIG_LOADED
 }
 
+// Global variables for GIF processing
+static uint16_t gifWidth, gifHeight;
+static uint8_t* blackBuffer = nullptr;
+static uint8_t* redBuffer = nullptr;
+
+// Callback function for TJpg_Decoder
+bool jpegDrawCallback(int16_t x, int16_t y, uint16_t w, uint16_t h, uint16_t* bitmap) {
+  // Process pixels into black/white and red buffers
+  for (uint16_t i = 0; i < w; i++) {
+    for (uint16_t j = 0; j < h; j++) {
+      uint16_t color = bitmap[j * w + i];
+      uint16_t pixelX = x + i;
+      uint16_t pixelY = y + j;
+      
+      // Check if pixel is within bounds
+      if (pixelX < gifWidth && pixelY < gifHeight) {
+        // Calculate byte and bit position
+        uint32_t pixelIndex = pixelY * gifWidth + pixelX;
+        uint32_t byteIndex = pixelIndex / 8;
+        uint8_t bitIndex = 7 - (pixelIndex % 8);
+        
+        // Simple color classification for 3-color display:
+        // Red-ish colors go to red buffer, dark colors go to black buffer, light colors stay white
+        if ((color & 0xF800) > 0x8000 && (color & 0x07E0) < 0x0400 && (color & 0x001F) < 0x0010) {
+          // Red-ish color - set red buffer bit
+          if (redBuffer) redBuffer[byteIndex] |= (1 << bitIndex);
+        } else if ((color & 0xF800) < 0x2000 && (color & 0x07E0) < 0x0200 && (color & 0x001F) < 0x0008) {
+          // Dark color - set black buffer bit
+          if (blackBuffer) blackBuffer[byteIndex] |= (1 << bitIndex);
+        }
+        // Light colors remain white (both buffers bit = 0)
+      }
+    }
+  }
+  return true;
+}
+
 // Display GIF file using TJpg_Decoder
 bool displayGIFFile(const char* filename) {
   // Initialize TJpg_Decoder
   TJpgDec.setSwapBytes(true);
+  TJpgDec.setCallback(jpegDrawCallback);
   
   // Get image dimensions first
-  uint16_t imgWidth, imgHeight;
-  if (!TJpgDec.getFsJpgSize(&imgWidth, &imgHeight, filename, SPIFFS)) {
+  if (!TJpgDec.getFsJpgSize(&gifWidth, &gifHeight, filename, SPIFFS)) {
     Serial.println("Failed to get GIF dimensions");
     return false;
   }
   
-  Serial.println("GIF dimensions: " + String(imgWidth) + "x" + String(imgHeight));
+  Serial.println("GIF dimensions: " + String(gifWidth) + "x" + String(gifHeight));
   
   // Allocate two buffers for black/white and red layers
-  uint8_t* blackBuffer = (uint8_t*)calloc((imgWidth * imgHeight + 7) / 8, sizeof(uint8_t));
-  uint8_t* redBuffer = (uint8_t*)calloc((imgWidth * imgHeight + 7) / 8, sizeof(uint8_t));
+  blackBuffer = (uint8_t*)calloc((gifWidth * gifHeight + 7) / 8, sizeof(uint8_t));
+  redBuffer = (uint8_t*)calloc((gifWidth * gifHeight + 7) / 8, sizeof(uint8_t));
   
   if (!blackBuffer || !redBuffer) {
     Serial.println("Failed to allocate memory for GIF buffers");
     if (blackBuffer) free(blackBuffer);
     if (redBuffer) free(redBuffer);
+    blackBuffer = nullptr;
+    redBuffer = nullptr;
     return false;
   }
-  
-  // Variables to store current pixel data
-  uint16_t currentX, currentY;
-  uint16_t currentWidth, currentHeight;
-  uint16_t* currentBitmap;
-  bool bufferReady = false;
-  
-  // Callback function for drawing pixels
-  auto jpegDrawCallback = [&imgWidth, &imgHeight, &blackBuffer, &redBuffer, 
-                          &currentX, &currentY, &currentWidth, &currentHeight, &currentBitmap, &bufferReady]
-                          (int16_t x, int16_t y, uint16_t w, uint16_t h, uint16_t* bitmap) -> bool {
-    // Store current data for processing
-    currentX = x;
-    currentY = y;
-    currentWidth = w;
-    currentHeight = h;
-    currentBitmap = bitmap;
-    bufferReady = true;
-    
-    // Process pixels into black/white and red buffers
-    for (uint16_t i = 0; i < w; i++) {
-      for (uint16_t j = 0; j < h; j++) {
-        uint16_t color = bitmap[j * w + i];
-        uint16_t pixelX = x + i;
-        uint16_t pixelY = y + j;
-        
-        // Check if pixel is within bounds
-        if (pixelX < imgWidth && pixelY < imgHeight) {
-          // Calculate byte and bit position
-          uint32_t pixelIndex = pixelY * imgWidth + pixelX;
-          uint32_t byteIndex = pixelIndex / 8;
-          uint8_t bitIndex = 7 - (pixelIndex % 8);
-          
-          // Simple color classification for 3-color display:
-          // Red-ish colors go to red buffer, dark colors go to black buffer, light colors stay white
-          if ((color & 0xF800) > 0x8000 && (color & 0x07E0) < 0x0400 && (color & 0x001F) < 0x0010) {
-            // Red-ish color - set red buffer bit
-            redBuffer[byteIndex] |= (1 << bitIndex);
-          } else if ((color & 0xF800) < 0x2000 && (color & 0x07E0) < 0x0200 && (color & 0x001F) < 0x0008) {
-            // Dark color - set black buffer bit
-            blackBuffer[byteIndex] |= (1 << bitIndex);
-          }
-          // Light colors remain white (both buffers bit = 0)
-        }
-      }
-    }
-    return true;
-  };
-  
-  TJpgDec.setCallback(jpegDrawCallback);
   
   // Decode the GIF to fill the buffers
   TJpgDec.drawFsJpg(0, 0, filename, SPIFFS);
@@ -745,7 +734,7 @@ bool displayGIFFile(const char* filename) {
   do
   {
     display.fillScreen(GxEPD_WHITE);
-    display.drawBitmap(0, 0, blackBuffer, imgWidth, imgHeight, GxEPD_BLACK);
+    display.drawBitmap(0, 0, blackBuffer, gifWidth, gifHeight, GxEPD_BLACK);
   }
   while (display.nextPage());
   
@@ -754,13 +743,15 @@ bool displayGIFFile(const char* filename) {
   display.firstPage();
   do
   {
-    display.drawBitmap(0, 0, redBuffer, imgWidth, imgHeight, GxEPD_RED);
+    display.drawBitmap(0, 0, redBuffer, gifWidth, gifHeight, GxEPD_RED);
   }
   while (display.nextPage());
   
   // Free allocated memory
   free(blackBuffer);
   free(redBuffer);
+  blackBuffer = nullptr;
+  redBuffer = nullptr;
   
   Serial.println("GIF displayed successfully with 3-color separation");
   
