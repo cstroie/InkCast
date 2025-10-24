@@ -92,9 +92,6 @@ bool displayGIFFile(const char* filename);
 
 #include <stdlib.h>
 
-// select the display class and display driver class in the following file (new style):
-#include "display.h"
-
 void listImageFiles() {
   Serial.println("Listing image files in SPIFFS...");
   display.setRotation(1); // Set rotation to match display orientation
@@ -222,7 +219,7 @@ bool displayRandomImage() {
   
   while (file) {
     String fileName = file.name();
-    if (fileName.endsWith(".pbm") || fileName.endsWith(".gif")) {
+    if (fileName.endsWith(".pbmx") || fileName.endsWith(".gif")) {
       if (currentIndex == randomIndex) {
         selectedFile = fileName;
         break;
