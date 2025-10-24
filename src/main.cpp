@@ -49,7 +49,7 @@
 #include <Fonts/FreeMonoBold12pt7b.h>
 
 // Include configuration file (rename config.tpl to config.h)
-#ifdef __has_include
+#if defined(__has_include)
   #if __has_include("config.h")
     #include "config.h"
     #define CONFIG_LOADED 1
