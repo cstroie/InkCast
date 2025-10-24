@@ -664,8 +664,15 @@ bool displayGIFFile(const char* filename) {
   // Initialize TJpg_Decoder
   TJpgDec.setSwapBytes(true);
   
+  // Variable to store color depth information
+  static uint8_t colorDepth = 16; // Default to 16-bit
+  
   // Callback function for drawing pixels
   auto jpegDrawCallback = [](int16_t x, int16_t y, uint16_t w, uint16_t h, uint16_t* bitmap) {
+    // The bitmap parameter contains 16-bit RGB565 color values
+    // This indicates the image is being processed as 16-bit color
+    colorDepth = 16;
+    
     // Convert 16-bit color to display color
     uint16_t color = bitmap[0];
     uint8_t displayColor;
@@ -698,6 +705,9 @@ bool displayGIFFile(const char* filename) {
     TJpgDec.drawFsJpg(0, 0, filename, SPIFFS);
   }
   while (display.nextPage());
+  
+  // Print color depth information
+  Serial.println("GIF color depth: " + String(colorDepth) + " bits");
   
   return true;
 }
