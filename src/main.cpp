@@ -49,6 +49,7 @@
 #include <Fonts/FreeMonoBold12pt7b.h>
 #include <TJpg_Decoder.h>
 #include "pbm.h"
+#include "gif.h"
 
 // Include configuration file (rename config.tpl to config.h)
 #if defined(__has_include)
@@ -299,46 +300,13 @@ bool displayRandomImage() {
     // Handle GIF file
     Serial.println("Displaying GIF file: " + selectedFile);
     
-    // Initialize TJpg_Decoder
-    TJpgDec.setSwapBytes(true);
-    
-    // Callback function for drawing pixels
-    auto jpegDrawCallback = [](int16_t x, int16_t y, uint16_t w, uint16_t h, uint16_t* bitmap) {
-      // Convert 16-bit color to display color
-      uint16_t color = bitmap[0];
-      uint8_t displayColor;
-      
-      // Simple color conversion (you might want to improve this)
-      if ((color & 0xF800) > 0x8000 || (color & 0x07E0) > 0x0400 || (color & 0x001F) > 0x0010) {
-        displayColor = GxEPD_BLACK;
-      } else {
-        displayColor = GxEPD_WHITE;
-      }
-      
-      // Draw pixel by pixel (simplified approach)
-      for (uint16_t i = 0; i < w; i++) {
-        for (uint16_t j = 0; j < h; j++) {
-          display.drawPixel(x + i, y + j, displayColor);
-        }
-      }
+    if (displayGIFFile(selectedFile.c_str())) {
+      Serial.println("GIF displayed successfully");
       return true;
-    };
-    
-    TJpgDec.setCallback(jpegDrawCallback);
-    
-    // Display the GIF
-    display.setRotation(1);
-    display.setFullWindow();
-    display.firstPage();
-    do
-    {
-      display.fillScreen(GxEPD_WHITE);
-      TJpgDec.drawFsJpg(0, 0, selectedFile.c_str(), SPIFFS);
+    } else {
+      Serial.println("Failed to display GIF");
+      return false;
     }
-    while (display.nextPage());
-    
-    Serial.println("GIF displayed successfully");
-    return true;
   }
   
 #elif defined(ESP8266)
@@ -424,46 +392,13 @@ bool displayRandomImage() {
     // Handle GIF file
     Serial.println("Displaying GIF file: " + selectedFile);
     
-    // Initialize TJpg_Decoder
-    TJpgDec.setSwapBytes(true);
-    
-    // Callback function for drawing pixels
-    auto jpegDrawCallback = [](int16_t x, int16_t y, uint16_t w, uint16_t h, uint16_t* bitmap) {
-      // Convert 16-bit color to display color
-      uint16_t color = bitmap[0];
-      uint8_t displayColor;
-      
-      // Simple color conversion (you might want to improve this)
-      if ((color & 0xF800) > 0x8000 || (color & 0x07E0) > 0x0400 || (color & 0x001F) > 0x0010) {
-        displayColor = GxEPD_BLACK;
-      } else {
-        displayColor = GxEPD_WHITE;
-      }
-      
-      // Draw pixel by pixel (simplified approach)
-      for (uint16_t i = 0; i < w; i++) {
-        for (uint16_t j = 0; j < h; j++) {
-          display.drawPixel(x + i, y + j, displayColor);
-        }
-      }
+    if (displayGIFFile(selectedFile.c_str())) {
+      Serial.println("GIF displayed successfully");
       return true;
-    };
-    
-    TJpgDec.setCallback(jpegDrawCallback);
-    
-    // Display the GIF
-    display.setRotation(1);
-    display.setFullWindow();
-    display.firstPage();
-    do
-    {
-      display.fillScreen(GxEPD_WHITE);
-      TJpgDec.drawFsJpg(0, 0, selectedFile.c_str(), SPIFFS);
+    } else {
+      Serial.println("Failed to display GIF");
+      return false;
     }
-    while (display.nextPage());
-    
-    Serial.println("GIF displayed successfully");
-    return true;
   }
 #endif
 }
