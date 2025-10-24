@@ -47,6 +47,7 @@
 #include <GxEPD2_4C.h>
 #include <GxEPD2_7C.h>
 #include <Fonts/FreeMonoBold12pt7b.h>
+#include <TJpg_Decoder.h>
 
 // Include configuration file (rename config.tpl to config.h)
 #if defined(__has_include)
@@ -87,8 +88,8 @@
 // select the display class and display driver class in the following file (new style):
 #include "display.h"
 
-void listPBMFiles() {
-  Serial.println("Listing PBM files in SPIFFS...");
+void listImageFiles() {
+  Serial.println("Listing image files in SPIFFS...");
   display.setRotation(1); // Set rotation to match display orientation
   display.setFullWindow();
   display.firstPage();
@@ -99,9 +100,9 @@ void listPBMFiles() {
     
     // Display title
     display.setCursor(20, 30);
-    display.print("PBM Files in SPIFFS:");
+    display.print("Image Files in SPIFFS:");
     
-    // List PBM files
+    // List image files
     int yPosition = 50;
     int fileCount = 0;
     
@@ -111,8 +112,8 @@ void listPBMFiles() {
       File file = root.openNextFile();
       while (file) {
         String fileName = file.name();
-        if (fileName.endsWith(".pbm")) {
-          Serial.println("Found PBM file: " + fileName);
+        if (fileName.endsWith(".pbm") || fileName.endsWith(".gif")) {
+          Serial.println("Found image file: " + fileName);
           display.setCursor(20, yPosition);
           display.print(fileName.c_str());
           yPosition += 20;
@@ -126,8 +127,8 @@ void listPBMFiles() {
     Dir dir = SPIFFS.openDir("/");
     while (dir.next()) {
       String fileName = dir.fileName();
-      if (fileName.endsWith(".pbm")) {
-        Serial.println("Found PBM file: " + fileName);
+      if (fileName.endsWith(".pbm") || fileName.endsWith(".gif")) {
+        Serial.println("Found image file: " + fileName);
         display.setCursor(20, yPosition);
         display.print(fileName.c_str());
         yPosition += 20;
@@ -137,11 +138,11 @@ void listPBMFiles() {
 #endif
     
     if (fileCount == 0) {
-      Serial.println("No PBM files found in SPIFFS");
+      Serial.println("No image files found in SPIFFS");
       display.setCursor(20, 50);
-      display.print("No PBM files found");
+      display.print("No image files found");
     } else {
-      Serial.println("Found " + String(fileCount) + " PBM files in SPIFFS");
+      Serial.println("Found " + String(fileCount) + " image files in SPIFFS");
     }
   }
   while (display.nextPage());
@@ -163,9 +164,9 @@ void displayHelloWorld() {
   while (display.nextPage());
 }
 
-bool displayRandomPBM() {
-  Serial.println("Searching for PBM files to display...");
-  // Count PBM files
+bool displayRandomImage() {
+  Serial.println("Searching for image files to display...");
+  // Count image files
   int fileCount = 0;
   
 #if defined(ESP32)
@@ -178,7 +179,7 @@ bool displayRandomPBM() {
   File file = root.openNextFile();
   while (file) {
     String fileName = file.name();
-    if (fileName.endsWith(".pbm")) {
+    if (fileName.endsWith(".pbm") || fileName.endsWith(".gif")) {
       fileCount++;
     }
     file = root.openNextFile();
@@ -188,17 +189,17 @@ bool displayRandomPBM() {
   Dir dir = SPIFFS.openDir("/");
   while (dir.next()) {
     String fileName = dir.fileName();
-    if (fileName.endsWith(".pbm")) {
+    if (fileName.endsWith(".pbm") || fileName.endsWith(".gif")) {
       fileCount++;
     }
   }
 #endif
 
   if (fileCount == 0) {
-    Serial.println("No PBM files found for display");
+    Serial.println("No image files found for display");
     return false;
   }
-  Serial.println("Found " + String(fileCount) + " PBM files");
+  Serial.println("Found " + String(fileCount) + " image files");
 
   // Select a random file
   int randomIndex = random(fileCount);
@@ -214,7 +215,7 @@ bool displayRandomPBM() {
   
   while (file) {
     String fileName = file.name();
-    if (fileName.endsWith(".pbm")) {
+    if (fileName.endsWith(".pbm") || fileName.endsWith(".gif")) {
       if (currentIndex == randomIndex) {
         selectedFile = fileName;
         break;
@@ -226,7 +227,7 @@ bool displayRandomPBM() {
   root.close();
   
   if (selectedFile.isEmpty()) {
-    Serial.println("Failed to select a PBM file");
+    Serial.println("Failed to select an image file");
     return false;
   }
   Serial.println("Selected file: " + selectedFile);
@@ -236,114 +237,161 @@ bool displayRandomPBM() {
     selectedFile = "/" + selectedFile;
   }
   
-  // Open the selected file
-  File pbmFile = SPIFFS.open(selectedFile, "r");
-  if (!pbmFile) {
-    Serial.println("Failed to open file: " + selectedFile);
-    return false;
-  }
-  Serial.println("Successfully opened file: " + selectedFile);
-  
-  // Skip PBM header (P4 format for binary)
-  char header[2];
-  pbmFile.readBytes(header, 2); // Read "P4"
-  Serial.println("Read PBM header: " + String(header[0]) + String(header[1]));
-  
-  // Skip comments and whitespace
-  while (pbmFile.available()) {
-    char c = pbmFile.read();
-    if (c == '#') {
-      // Skip comment line
-      while (pbmFile.available() && pbmFile.read() != '\n');
-    } else if (c == ' ' || c == '\t' || c == '\n' || c == '\r') {
-      continue;
-    } else {
-      // Put back the character by seeking back
-      pbmFile.seek(pbmFile.position() - 1);
-      break;
+  // Check file extension and handle accordingly
+  if (selectedFile.endsWith(".pbm")) {
+    // Open the selected file
+    File pbmFile = SPIFFS.open(selectedFile, "r");
+    if (!pbmFile) {
+      Serial.println("Failed to open file: " + selectedFile);
+      return false;
     }
-  }
-  
-  // Parse width and height from PBM header
-  int width = 0, height = 0;
-  
-  // Skip whitespace and read width
-  while (pbmFile.available()) {
-    char c = pbmFile.read();
-    if (c >= '0' && c <= '9') {
-      width = width * 10 + (c - '0');
-    } else if (c == ' ' || c == '\t' || c == '\n' || c == '\r') {
-      if (width > 0) break; // We've read the width
-    } else if (c == '#') {
-      // Skip comment line
-      while (pbmFile.available() && pbmFile.read() != '\n');
+    Serial.println("Successfully opened file: " + selectedFile);
+    
+    // Skip PBM header (P4 format for binary)
+    char header[2];
+    pbmFile.readBytes(header, 2); // Read "P4"
+    Serial.println("Read PBM header: " + String(header[0]) + String(header[1]));
+    
+    // Skip comments and whitespace
+    while (pbmFile.available()) {
+      char c = pbmFile.read();
+      if (c == '#') {
+        // Skip comment line
+        while (pbmFile.available() && pbmFile.read() != '\n');
+      } else if (c == ' ' || c == '\t' || c == '\n' || c == '\r') {
+        continue;
+      } else {
+        // Put back the character by seeking back
+        pbmFile.seek(pbmFile.position() - 1);
+        break;
+      }
     }
-  }
-  
-  // Skip whitespace and read height
-  while (pbmFile.available()) {
-    char c = pbmFile.read();
-    if (c >= '0' && c <= '9') {
-      height = height * 10 + (c - '0');
-    } else if (c == ' ' || c == '\t' || c == '\n' || c == '\r') {
-      if (height > 0) break; // We've read the height
-    } else if (c == '#') {
-      // Skip comment line
-      while (pbmFile.available() && pbmFile.read() != '\n');
+    
+    // Parse width and height from PBM header
+    int width = 0, height = 0;
+    
+    // Skip whitespace and read width
+    while (pbmFile.available()) {
+      char c = pbmFile.read();
+      if (c >= '0' && c <= '9') {
+        width = width * 10 + (c - '0');
+      } else if (c == ' ' || c == '\t' || c == '\n' || c == '\r') {
+        if (width > 0) break; // We've read the width
+      } else if (c == '#') {
+        // Skip comment line
+        while (pbmFile.available() && pbmFile.read() != '\n');
+      }
     }
-  }
-  
-  // Skip any remaining whitespace
-  while (pbmFile.available()) {
-    char c = pbmFile.read();
-    if (c != ' ' && c != '\t' && c != '\n' && c != '\r') {
-      // Put back the character
-      pbmFile.seek(pbmFile.position() - 1);
-      break;
+    
+    // Skip whitespace and read height
+    while (pbmFile.available()) {
+      char c = pbmFile.read();
+      if (c >= '0' && c <= '9') {
+        height = height * 10 + (c - '0');
+      } else if (c == ' ' || c == '\t' || c == '\n' || c == '\r') {
+        if (height > 0) break; // We've read the height
+      } else if (c == '#') {
+        // Skip comment line
+        while (pbmFile.available() && pbmFile.read() != '\n');
+      }
     }
-  }
-  
-  Serial.println("Image dimensions: " + String(width) + "x" + String(height));
-  
-  // Calculate buffer size (1 bit per pixel)
-  int bufferSize = (width * height + 7) / 8;
-  Serial.println("Allocating buffer of " + String(bufferSize) + " bytes");
-  uint8_t* buffer = (uint8_t*)malloc(bufferSize);
-  
-  if (!buffer) {
-    Serial.println("Failed to allocate memory for image buffer");
+    
+    // Skip any remaining whitespace
+    while (pbmFile.available()) {
+      char c = pbmFile.read();
+      if (c != ' ' && c != '\t' && c != '\n' && c != '\r') {
+        // Put back the character
+        pbmFile.seek(pbmFile.position() - 1);
+        break;
+      }
+    }
+    
+    Serial.println("Image dimensions: " + String(width) + "x" + String(height));
+    
+    // Calculate buffer size (1 bit per pixel)
+    int bufferSize = (width * height + 7) / 8;
+    Serial.println("Allocating buffer of " + String(bufferSize) + " bytes");
+    uint8_t* buffer = (uint8_t*)malloc(bufferSize);
+    
+    if (!buffer) {
+      Serial.println("Failed to allocate memory for image buffer");
+      pbmFile.close();
+      return false;
+    }
+    Serial.println("Successfully allocated image buffer");
+    
+    // Read image data
+    Serial.println("Reading image data...");
+    int bytesRead = pbmFile.readBytes((char*)buffer, bufferSize);
     pbmFile.close();
-    return false;
-  }
-  Serial.println("Successfully allocated image buffer");
-  
-  // Read image data
-  Serial.println("Reading image data...");
-  int bytesRead = pbmFile.readBytes((char*)buffer, bufferSize);
-  pbmFile.close();
-  Serial.println("Read " + String(bytesRead) + " bytes from file");
-  
-  if (bytesRead != bufferSize) {
-    Serial.println("Error: Expected " + String(bufferSize) + " bytes but read " + String(bytesRead));
+    Serial.println("Read " + String(bytesRead) + " bytes from file");
+    
+    if (bytesRead != bufferSize) {
+      Serial.println("Error: Expected " + String(bufferSize) + " bytes but read " + String(bytesRead));
+      free(buffer);
+      return false;
+    }
+    
+    // Display the image
+    Serial.println("Displaying image on e-paper...");
+    display.setRotation(1);
+    display.setFullWindow();
+    display.firstPage();
+    do
+    {
+      display.fillScreen(GxEPD_WHITE);
+      display.drawBitmap(0, 0, buffer, width, height, GxEPD_BLACK);
+    }
+    while (display.nextPage());
+    Serial.println("Image displayed successfully");
+    
     free(buffer);
-    return false;
+    return true;
+  } else if (selectedFile.endsWith(".gif")) {
+    // Handle GIF file
+    Serial.println("Displaying GIF file: " + selectedFile);
+    
+    // Initialize TJpg_Decoder
+    TJpgDec.setSwapBytes(true);
+    
+    // Callback function for drawing pixels
+    auto jpegDrawCallback = [](int16_t x, int16_t y, uint16_t w, uint16_t h, uint16_t* bitmap) {
+      // Convert 16-bit color to display color
+      uint16_t color = bitmap[0];
+      uint8_t displayColor;
+      
+      // Simple color conversion (you might want to improve this)
+      if ((color & 0xF800) > 0x8000 || (color & 0x07E0) > 0x0400 || (color & 0x001F) > 0x0010) {
+        displayColor = GxEPD_BLACK;
+      } else {
+        displayColor = GxEPD_WHITE;
+      }
+      
+      // Draw pixel by pixel (simplified approach)
+      for (uint16_t i = 0; i < w; i++) {
+        for (uint16_t j = 0; j < h; j++) {
+          display.drawPixel(x + i, y + j, displayColor);
+        }
+      }
+      return true;
+    };
+    
+    TJpgDec.setCallback(jpegDrawCallback);
+    
+    // Display the GIF
+    display.setRotation(1);
+    display.setFullWindow();
+    display.firstPage();
+    do
+    {
+      display.fillScreen(GxEPD_WHITE);
+      TJpgDec.drawFsJpg(0, 0, selectedFile.c_str(), SPIFFS);
+    }
+    while (display.nextPage());
+    
+    Serial.println("GIF displayed successfully");
+    return true;
   }
-  
-  // Display the image
-  Serial.println("Displaying image on e-paper...");
-  display.setRotation(1);
-  display.setFullWindow();
-  display.firstPage();
-  do
-  {
-    display.fillScreen(GxEPD_WHITE);
-    display.drawBitmap(0, 0, buffer, width, height, GxEPD_BLACK);
-  }
-  while (display.nextPage());
-  Serial.println("Image displayed successfully");
-  
-  free(buffer);
-  return true;
   
 #elif defined(ESP8266)
   dir = SPIFFS.openDir("/");
@@ -352,7 +400,7 @@ bool displayRandomPBM() {
   
   while (dir.next()) {
     String fileName = dir.fileName();
-    if (fileName.endsWith(".pbm")) {
+    if (fileName.endsWith(".pbm") || fileName.endsWith(".gif")) {
       if (currentIndex == randomIndex) {
         selectedFile = fileName;
         break;
@@ -362,119 +410,166 @@ bool displayRandomPBM() {
   }
   
   if (selectedFile.isEmpty()) {
-    Serial.println("Failed to select a PBM file");
+    Serial.println("Failed to select an image file");
     return false;
   }
   Serial.println("Selected file: " + selectedFile);
   
-  // Open the selected file
-  File pbmFile = SPIFFS.open(selectedFile, "r");
-  if (!pbmFile) {
-    Serial.println("Failed to open file: " + selectedFile);
-    return false;
-  }
-  Serial.println("Successfully opened file: " + selectedFile);
-  
-  // Skip PBM header (P4 format for binary)
-  char header[2];
-  pbmFile.readBytes(header, 2); // Read "P4"
-  Serial.println("Read PBM header: " + String(header[0]) + String(header[1]));
-  
-  // Skip comments and whitespace
-  while (pbmFile.available()) {
-    char c = pbmFile.read();
-    if (c == '#') {
-      // Skip comment line
-      while (pbmFile.available() && pbmFile.read() != '\n');
-    } else if (c == ' ' || c == '\t' || c == '\n' || c == '\r') {
-      continue;
-    } else {
-      // Put back the character by seeking back
-      pbmFile.seek(pbmFile.position() - 1);
-      break;
+  // Check file extension and handle accordingly
+  if (selectedFile.endsWith(".pbm")) {
+    // Open the selected file
+    File pbmFile = SPIFFS.open(selectedFile, "r");
+    if (!pbmFile) {
+      Serial.println("Failed to open file: " + selectedFile);
+      return false;
     }
-  }
-  
-  // Parse width and height from PBM header
-  int width = 0, height = 0;
-  
-  // Skip whitespace and read width
-  while (pbmFile.available()) {
-    char c = pbmFile.read();
-    if (c >= '0' && c <= '9') {
-      width = width * 10 + (c - '0');
-    } else if (c == ' ' || c == '\t' || c == '\n' || c == '\r') {
-      if (width > 0) break; // We've read the width
-    } else if (c == '#') {
-      // Skip comment line
-      while (pbmFile.available() && pbmFile.read() != '\n');
+    Serial.println("Successfully opened file: " + selectedFile);
+    
+    // Skip PBM header (P4 format for binary)
+    char header[2];
+    pbmFile.readBytes(header, 2); // Read "P4"
+    Serial.println("Read PBM header: " + String(header[0]) + String(header[1]));
+    
+    // Skip comments and whitespace
+    while (pbmFile.available()) {
+      char c = pbmFile.read();
+      if (c == '#') {
+        // Skip comment line
+        while (pbmFile.available() && pbmFile.read() != '\n');
+      } else if (c == ' ' || c == '\t' || c == '\n' || c == '\r') {
+        continue;
+      } else {
+        // Put back the character by seeking back
+        pbmFile.seek(pbmFile.position() - 1);
+        break;
+      }
     }
-  }
-  
-  // Skip whitespace and read height
-  while (pbmFile.available()) {
-    char c = pbmFile.read();
-    if (c >= '0' && c <= '9') {
-      height = height * 10 + (c - '0');
-    } else if (c == ' ' || c == '\t' || c == '\n' || c == '\r') {
-      if (height > 0) break; // We've read the height
-    } else if (c == '#') {
-      // Skip comment line
-      while (pbmFile.available() && pbmFile.read() != '\n');
+    
+    // Parse width and height from PBM header
+    int width = 0, height = 0;
+    
+    // Skip whitespace and read width
+    while (pbmFile.available()) {
+      char c = pbmFile.read();
+      if (c >= '0' && c <= '9') {
+        width = width * 10 + (c - '0');
+      } else if (c == ' ' || c == '\t' || c == '\n' || c == '\r') {
+        if (width > 0) break; // We've read the width
+      } else if (c == '#') {
+        // Skip comment line
+        while (pbmFile.available() && pbmFile.read() != '\n');
+      }
     }
-  }
-  
-  // Skip any remaining whitespace
-  while (pbmFile.available()) {
-    char c = pbmFile.read();
-    if (c != ' ' && c != '\t' && c != '\n' && c != '\r') {
-      // Put back the character
-      pbmFile.seek(pbmFile.position() - 1);
-      break;
+    
+    // Skip whitespace and read height
+    while (pbmFile.available()) {
+      char c = pbmFile.read();
+      if (c >= '0' && c <= '9') {
+        height = height * 10 + (c - '0');
+      } else if (c == ' ' || c == '\t' || c == '\n' || c == '\r') {
+        if (height > 0) break; // We've read the height
+      } else if (c == '#') {
+        // Skip comment line
+        while (pbmFile.available() && pbmFile.read() != '\n');
+      }
     }
-  }
-  
-  Serial.println("Image dimensions: " + String(width) + "x" + String(height));
-  
-  // Calculate buffer size (1 bit per pixel)
-  int bufferSize = (width * height + 7) / 8;
-  Serial.println("Allocating buffer of " + String(bufferSize) + " bytes");
-  uint8_t* buffer = (uint8_t*)malloc(bufferSize);
-  
-  if (!buffer) {
-    Serial.println("Failed to allocate memory for image buffer");
+    
+    // Skip any remaining whitespace
+    while (pbmFile.available()) {
+      char c = pbmFile.read();
+      if (c != ' ' && c != '\t' && c != '\n' && c != '\r') {
+        // Put back the character
+        pbmFile.seek(pbmFile.position() - 1);
+        break;
+      }
+    }
+    
+    Serial.println("Image dimensions: " + String(width) + "x" + String(height));
+    
+    // Calculate buffer size (1 bit per pixel)
+    int bufferSize = (width * height + 7) / 8;
+    Serial.println("Allocating buffer of " + String(bufferSize) + " bytes");
+    uint8_t* buffer = (uint8_t*)malloc(bufferSize);
+    
+    if (!buffer) {
+      Serial.println("Failed to allocate memory for image buffer");
+      pbmFile.close();
+      return false;
+    }
+    Serial.println("Successfully allocated image buffer");
+    
+    // Read image data
+    Serial.println("Reading image data...");
+    int bytesRead = pbmFile.readBytes((char*)buffer, bufferSize);
     pbmFile.close();
-    return false;
-  }
-  Serial.println("Successfully allocated image buffer");
-  
-  // Read image data
-  Serial.println("Reading image data...");
-  int bytesRead = pbmFile.readBytes((char*)buffer, bufferSize);
-  pbmFile.close();
-  Serial.println("Read " + String(bytesRead) + " bytes from file");
-  
-  if (bytesRead != bufferSize) {
-    Serial.println("Error: Expected " + String(bufferSize) + " bytes but read " + String(bytesRead));
+    Serial.println("Read " + String(bytesRead) + " bytes from file");
+    
+    if (bytesRead != bufferSize) {
+      Serial.println("Error: Expected " + String(bufferSize) + " bytes but read " + String(bytesRead));
+      free(buffer);
+      return false;
+    }
+    
+    // Display the image
+    Serial.println("Displaying image on e-paper...");
+    display.setRotation(1);
+    display.setFullWindow();
+    display.firstPage();
+    do
+    {
+      display.fillScreen(GxEPD_WHITE);
+      display.drawBitmap(0, 0, buffer, width, height, GxEPD_RED);
+    }
+    while (display.nextPage());
+    Serial.println("Image displayed successfully");
+    
     free(buffer);
-    return false;
+    return true;
+  } else if (selectedFile.endsWith(".gif")) {
+    // Handle GIF file
+    Serial.println("Displaying GIF file: " + selectedFile);
+    
+    // Initialize TJpg_Decoder
+    TJpgDec.setSwapBytes(true);
+    
+    // Callback function for drawing pixels
+    auto jpegDrawCallback = [](int16_t x, int16_t y, uint16_t w, uint16_t h, uint16_t* bitmap) {
+      // Convert 16-bit color to display color
+      uint16_t color = bitmap[0];
+      uint8_t displayColor;
+      
+      // Simple color conversion (you might want to improve this)
+      if ((color & 0xF800) > 0x8000 || (color & 0x07E0) > 0x0400 || (color & 0x001F) > 0x0010) {
+        displayColor = GxEPD_BLACK;
+      } else {
+        displayColor = GxEPD_WHITE;
+      }
+      
+      // Draw pixel by pixel (simplified approach)
+      for (uint16_t i = 0; i < w; i++) {
+        for (uint16_t j = 0; j < h; j++) {
+          display.drawPixel(x + i, y + j, displayColor);
+        }
+      }
+      return true;
+    };
+    
+    TJpgDec.setCallback(jpegDrawCallback);
+    
+    // Display the GIF
+    display.setRotation(1);
+    display.setFullWindow();
+    display.firstPage();
+    do
+    {
+      display.fillScreen(GxEPD_WHITE);
+      TJpgDec.drawFsJpg(0, 0, selectedFile.c_str(), SPIFFS);
+    }
+    while (display.nextPage());
+    
+    Serial.println("GIF displayed successfully");
+    return true;
   }
-  
-  // Display the image
-  Serial.println("Displaying image on e-paper...");
-  display.setRotation(1);
-  display.setFullWindow();
-  display.firstPage();
-  do
-  {
-    display.fillScreen(GxEPD_WHITE);
-    display.drawBitmap(0, 0, buffer, width, height, GxEPD_RED);
-  }
-  while (display.nextPage());
-  Serial.println("Image displayed successfully");
-  
-  free(buffer);
-  return true;
 #endif
 }
 
@@ -622,9 +717,9 @@ void setup() {
 #endif
   Serial.println("End of SPIFFS content");
   
-  // Try to display a random PBM file, fallback to "Hello World" if none found
-  Serial.println("Attempting to display a random PBM file...");
-  if (!displayRandomPBM()) {
+  // Try to display a random image file, fallback to "Hello World" if none found
+  Serial.println("Attempting to display a random image file...");
+  if (!displayRandomImage()) {
     Serial.println("No PBM files found, trying to fetch image from server...");
     // No PBM files found, try to fetch image from server
     bool imageFetched = false;
