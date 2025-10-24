@@ -231,6 +231,11 @@ bool displayRandomPBM() {
   }
   Serial.println("Selected file: " + selectedFile);
   
+  // Ensure the file path starts with "/"
+  if (!selectedFile.startsWith("/")) {
+    selectedFile = "/" + selectedFile;
+  }
+  
   // Open the selected file
   File pbmFile = SPIFFS.open(selectedFile, "r");
   if (!pbmFile) {
