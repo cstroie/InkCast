@@ -219,7 +219,7 @@ bool displayRandomImage() {
   
   while (file) {
     String fileName = file.name();
-    if (fileName.endsWith(".pbmx") || fileName.endsWith(".gif")) {
+    if (fileName.endsWith(".pbm") || fileName.endsWith(".gif")) {
       if (currentIndex == randomIndex) {
         selectedFile = fileName;
         break;
