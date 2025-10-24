@@ -22,7 +22,13 @@
 
 #include <Arduino.h>
 #include <TJpg_Decoder.h>
-#include "display.h"
+#include <GxEPD2_BW.h>
+#include <GxEPD2_3C.h>
+#include <GxEPD2_4C.h>
+#include <GxEPD2_7C.h>
+
+// Forward declaration of display object
+extern GxEPD2_3C<GxEPD2_290_C90c, 296> display;
 
 // Function declarations for GIF handling
 bool displayGIFFile(const char* filename);

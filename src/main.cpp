@@ -50,6 +50,11 @@
 #include <TJpg_Decoder.h>
 #include "pbm.h"
 #include "gif.h"
+#include "display.h"
+
+// Forward declarations for helper functions
+void listSPIFFSContent();
+void fetchAndDisplayImage();
 
 // Include configuration file (rename config.tpl to config.h)
 #if defined(__has_include)
@@ -401,6 +406,9 @@ bool displayRandomImage() {
     }
   }
 #endif
+  
+  // Add a default return statement to avoid compiler warning
+  return false;
 }
 
 void setup() {
