@@ -286,7 +286,7 @@ bool displayRandomImage() {
     // Display the image
     Serial.println("Displaying image on e-paper...");
     display.setRotation(1);
-    display.setFullWindow();
+    display.setPartialWindow(0, 0, width, height);
     display.firstPage();
     do
     {
@@ -378,12 +378,12 @@ bool displayRandomImage() {
     // Display the image
     Serial.println("Displaying image on e-paper...");
     display.setRotation(1);
-    display.setFullWindow();
+    display.setPartialWindow(0, 0, width, height);
     display.firstPage();
     do
     {
       display.fillScreen(GxEPD_WHITE);
-      display.drawBitmap(0, 0, buffer, width, height, GxEPD_RED);
+      display.drawBitmap(0, 0, buffer, width, height, GxEPD_BLACK);
     }
     while (display.nextPage());
     Serial.println("Image displayed successfully");
