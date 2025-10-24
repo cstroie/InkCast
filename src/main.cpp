@@ -549,6 +549,38 @@ void setup() {
   }
   Serial.println("SPIFFS mounted successfully");
   
+  // List all files in SPIFFS
+  Serial.println("SPIFFS content:");
+#if defined(ESP32)
+  File root = SPIFFS.open("/");
+  if (root) {
+    File file = root.openNextFile();
+    while (file) {
+      Serial.print("File: ");
+      Serial.print(file.name());
+      Serial.print(" Size: ");
+      Serial.println(file.size());
+      file = root.openNextFile();
+    }
+    root.close();
+  }
+#elif defined(ESP8266)
+  Dir dir = SPIFFS.openDir("/");
+  while (dir.next()) {
+    Serial.print("File: ");
+    Serial.print(dir.fileName());
+    Serial.print(" Size: ");
+    File f = SPIFFS.open(dir.fileName(), "r");
+    if (f) {
+      Serial.println(f.size());
+      f.close();
+    } else {
+      Serial.println("Unknown");
+    }
+  }
+#endif
+  Serial.println("End of SPIFFS content");
+  
   // Try to display a random PBM file, fallback to "Hello World" if none found
   Serial.println("Attempting to display a random PBM file...");
   if (!displayRandomPBM()) {
