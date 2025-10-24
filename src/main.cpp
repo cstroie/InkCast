@@ -708,7 +708,16 @@ bool displayGIFFile(const char* filename) {
     return false;
   }
   
-  Serial.println("GIF dimensions: " + String(gifWidth) + "x" + String(gifHeight));
+  Serial.println("GIF reported dimensions: " + String(gifWidth) + "x" + String(gifHeight));
+  
+  // For debugging: show actual display dimensions
+  Serial.println("Display dimensions: 296x128 (expected)");
+  
+  // If dimensions don't match expected, log a warning
+  if (gifWidth != 296 || gifHeight != 128) {
+    Serial.println("WARNING: GIF dimensions don't match expected 296x128!");
+    Serial.println("         Using actual GIF dimensions for buffer allocation.");
+  }
   
   // Allocate two buffers for black/white and red layers
   blackBuffer = (uint8_t*)calloc((gifWidth * gifHeight + 7) / 8, sizeof(uint8_t));
@@ -723,7 +732,11 @@ bool displayGIFFile(const char* filename) {
     return false;
   }
   
+  Serial.println("Allocated buffers for " + String(gifWidth) + "x" + String(gifHeight) + 
+                 " image (" + String((gifWidth * gifHeight + 7) / 8) + " bytes each)");
+  
   // Decode the GIF to fill the buffers
+  Serial.println("Decoding GIF...");
   TJpgDec.drawFsJpg(0, 0, filename, SPIFFS);
   
   // Display the black layer first
