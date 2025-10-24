@@ -517,6 +517,29 @@ void setup() {
   
   // List all files in SPIFFS
   Serial.println("SPIFFS content:");
+  listSPIFFSContent();
+  Serial.println("End of SPIFFS content");
+  
+  // Try to display a random image file, fallback to "Hello World" if none found
+  Serial.println("Attempting to display a random image file...");
+  if (!displayRandomImage()) {
+    Serial.println("No image files found, trying to fetch image from server...");
+    fetchAndDisplayImage();
+  }
+  display.hibernate();
+  
+#if defined(ESP8266)
+  // Go to deep sleep
+#if CONFIG_LOADED
+  ESP.deepSleep(DEEP_SLEEP_DURATION); 
+#else
+  ESP.deepSleep(0); 
+#endif
+#endif
+}
+
+// Helper function to list SPIFFS content
+void listSPIFFSContent() {
 #if defined(ESP32)
   File root = SPIFFS.open("/");
   if (root) {
@@ -545,153 +568,90 @@ void setup() {
     }
   }
 #endif
-  Serial.println("End of SPIFFS content");
-  
-  // Try to display a random image file, fallback to "Hello World" if none found
-  Serial.println("Attempting to display a random image file...");
-  if (!displayRandomImage()) {
-    Serial.println("No PBM files found, trying to fetch image from server...");
-    // No PBM files found, try to fetch image from server
-    bool imageFetched = false;
-    
+}
+
+// Helper function to fetch and display image from server
+void fetchAndDisplayImage() {
 #if CONFIG_LOADED
+  Serial.println("Fetching image from server...");
+  
 #if defined(ESP32)
-    Serial.println("Fetching image from server...");
-    HTTPClient http;
-    http.begin(SERVER_URL);
-    int httpCode = http.GET();
-    
-    if (httpCode == HTTP_CODE_OK) {
-      Serial.println("Image downloaded successfully");
-      WiFiClient *stream = http.getStreamPtr();
-      
-      // Parse PBM header to get image dimensions
-      int width = 0, height = 0;
-      if (!parsePBMHeader(stream, width, height)) {
-        Serial.println("Failed to parse PBM header from server");
-        http.end();
-        return;
-      }
-      
-      Serial.println("Image dimensions: " + String(width) + "x" + String(height));
-      
-      // Calculate buffer size (1 bit per pixel)
-      int bufferSize = (width * height + 7) / 8;
-      Serial.println("Allocating buffer of " + String(bufferSize) + " bytes");
-      uint8_t* buffer = (uint8_t*)malloc(bufferSize);
-      
-      if (buffer) {
-        // Read image data
-        if (readPBMData(stream, buffer, width, height)) {
-          // Display the image
-          display.setRotation(1);
-          display.setFullWindow();
-          display.firstPage();
-          do
-          {
-            display.fillScreen(GxEPD_WHITE);
-            display.drawBitmap(0, 0, buffer, width, height, GxEPD_RED);
-          }
-          while (display.nextPage());
-          
-          imageFetched = true;
-          Serial.println("Image displayed successfully");
-        } else {
-          Serial.println("Failed to read PBM data from server");
-        }
-        free(buffer);
-      } else {
-        Serial.println("Failed to allocate memory for image buffer");
-      }
-    }
-    http.end();
-    
+  HTTPClient http;
+  http.begin(SERVER_URL);
+  int httpCode = http.GET();
 #elif defined(ESP8266)
-    Serial.println("Fetching image from server...");
-    WiFiClientSecure client;
-    client.setInsecure(); // Skip certificate verification for simplicity
-    
-    HTTPClient http;
-    http.begin(client, SERVER_URL);
-    int httpCode = http.GET();
-    
-    if (httpCode == HTTP_CODE_OK) {
-      Serial.println("Image downloaded successfully");
-      WiFiClient *stream = http.getStreamPtr();
-      
-      // Parse PBM header to get image dimensions
-      int width = 0, height = 0;
-      if (!parsePBMHeader(stream, width, height)) {
-        Serial.println("Failed to parse PBM header from server");
-        http.end();
-        return;
-      }
-      
-      Serial.println("Image dimensions: " + String(width) + "x" + String(height));
-      
-      // Calculate buffer size (1 bit per pixel)
-      int bufferSize = (width * height + 7) / 8;
-      Serial.println("Allocating buffer of " + String(bufferSize) + " bytes");
-      uint8_t* buffer = (uint8_t*)malloc(bufferSize);
-      
-      if (buffer) {
-        // Read image data
-        if (readPBMData(stream, buffer, width, height)) {
-          // Display the image
-          display.setRotation(1);
-          display.setFullWindow();
-          display.firstPage();
-          do
-          {
-            display.fillScreen(GxEPD_WHITE);
-            display.drawBitmap(0, 0, buffer, width, height, GxEPD_RED);
-          }
-          while (display.nextPage());
-          
-          imageFetched = true;
-          Serial.println("Image displayed successfully");
-        } else {
-          Serial.println("Failed to read PBM data from server");
-        }
-        free(buffer);
-      } else {
-        Serial.println("Failed to allocate memory for image buffer");
-      }
-    }
-    http.end();
-#endif
-#else // CONFIG_LOADED
-    // If we couldn't fetch an image from the server, display instructions
-    Serial.println("Displaying instructions for adding PBM files...");
-    display.setRotation(1);
-    display.setFullWindow();
-    display.firstPage();
-    do
-    {
-      display.fillScreen(GxEPD_WHITE);
-      display.setFont(&FreeMonoBold12pt7b);
-      display.setCursor(20, 30);
-      display.print("No PBM Files Found");
-      display.setCursor(20, 60);
-      display.print("Please add PBM files");
-      display.setCursor(20, 90);
-      display.print("to SPIFFS or check");
-      display.setCursor(20, 120);
-      display.print("server connectivity");
-    }
-    while (display.nextPage());
-#endif // CONFIG_LOADED
-  }
-  display.hibernate();
+  WiFiClientSecure client;
+  client.setInsecure(); // Skip certificate verification for simplicity
   
-#if defined(ESP8266)
-  // Go to deep sleep
-#if CONFIG_LOADED
-  ESP.deepSleep(DEEP_SLEEP_DURATION); 
-#else
-  ESP.deepSleep(0); 
+  HTTPClient http;
+  http.begin(client, SERVER_URL);
+  int httpCode = http.GET();
 #endif
-#endif
+
+  if (httpCode == HTTP_CODE_OK) {
+    Serial.println("Image downloaded successfully");
+    WiFiClient *stream = http.getStreamPtr();
+    
+    // Parse PBM header to get image dimensions
+    int width = 0, height = 0;
+    if (!parsePBMHeader(stream, width, height)) {
+      Serial.println("Failed to parse PBM header from server");
+      http.end();
+      return;
+    }
+    
+    Serial.println("Image dimensions: " + String(width) + "x" + String(height));
+    
+    // Calculate buffer size (1 bit per pixel)
+    int bufferSize = (width * height + 7) / 8;
+    Serial.println("Allocating buffer of " + String(bufferSize) + " bytes");
+    uint8_t* buffer = (uint8_t*)malloc(bufferSize);
+    
+    if (buffer) {
+      // Read image data
+      if (readPBMData(stream, buffer, width, height)) {
+        // Display the image
+        display.setRotation(1);
+        display.setFullWindow();
+        display.firstPage();
+        do
+        {
+          display.fillScreen(GxEPD_WHITE);
+          display.drawBitmap(0, 0, buffer, width, height, GxEPD_RED);
+        }
+        while (display.nextPage());
+        
+        Serial.println("Image displayed successfully");
+      } else {
+        Serial.println("Failed to read PBM data from server");
+      }
+      free(buffer);
+    } else {
+      Serial.println("Failed to allocate memory for image buffer");
+    }
+  }
+  http.end();
+#else // CONFIG_LOADED
+  // If we couldn't fetch an image from the server, display instructions
+  Serial.println("Displaying instructions for adding image files...");
+  display.setRotation(1);
+  display.setFullWindow();
+  display.firstPage();
+  do
+  {
+    display.fillScreen(GxEPD_WHITE);
+    display.setFont(&FreeMonoBold12pt7b);
+    display.setCursor(20, 30);
+    display.print("No Image Files Found");
+    display.setCursor(20, 60);
+    display.print("Please add image files");
+    display.setCursor(20, 90);
+    display.print("to SPIFFS or check");
+    display.setCursor(20, 120);
+    display.print("server connectivity");
+  }
+  while (display.nextPage());
+#endif // CONFIG_LOADED
 }
 
 void loop() {};
