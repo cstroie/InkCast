@@ -480,8 +480,14 @@ bool displayRandomPBM() {
 
 void setup() {
   Serial.begin(115200);
-  // Initialize random seed
-  randomSeed(analogRead(0)); 
+  // Initialize random seed with better entropy
+#if defined(ESP32)
+  randomSeed(esp_random());
+#elif defined(ESP8266)
+  randomSeed(RANDOM_REG32);
+#else
+  randomSeed(analogRead(0));
+#endif
   
 #if CONFIG_LOADED
   // Connect to WiFi
