@@ -264,19 +264,32 @@ bool displayRandomPBM() {
     }
   }
   
-  // Skip width and height (we know it's 296x128)
+  // Parse width and height from PBM header
+  int width = 0, height = 0;
+  
+  // Skip whitespace and read width
   while (pbmFile.available()) {
     char c = pbmFile.read();
-    if (c == ' ' || c == '\n' || c == '\r') {
-      // Skip whitespace after numbers
-      continue;
-    } else if (c >= '0' && c <= '9') {
-      // Skip digits
-      continue;
-    } else {
-      // Put back the character
-      pbmFile.seek(pbmFile.position() - 1);
-      break;
+    if (c >= '0' && c <= '9') {
+      width = width * 10 + (c - '0');
+    } else if (c == ' ' || c == '\t' || c == '\n' || c == '\r') {
+      if (width > 0) break; // We've read the width
+    } else if (c == '#') {
+      // Skip comment line
+      while (pbmFile.available() && pbmFile.read() != '\n');
+    }
+  }
+  
+  // Skip whitespace and read height
+  while (pbmFile.available()) {
+    char c = pbmFile.read();
+    if (c >= '0' && c <= '9') {
+      height = height * 10 + (c - '0');
+    } else if (c == ' ' || c == '\t' || c == '\n' || c == '\r') {
+      if (height > 0) break; // We've read the height
+    } else if (c == '#') {
+      // Skip comment line
+      while (pbmFile.available() && pbmFile.read() != '\n');
     }
   }
   
@@ -290,8 +303,10 @@ bool displayRandomPBM() {
     }
   }
   
-  // Calculate buffer size (1 bit per pixel for 296x128)
-  int bufferSize = (296 * 128 + 7) / 8; // 4736 bytes
+  Serial.println("Image dimensions: " + String(width) + "x" + String(height));
+  
+  // Calculate buffer size (1 bit per pixel)
+  int bufferSize = (width * height + 7) / 8;
   Serial.println("Allocating buffer of " + String(bufferSize) + " bytes");
   uint8_t* buffer = (uint8_t*)malloc(bufferSize);
   
@@ -322,7 +337,7 @@ bool displayRandomPBM() {
   do
   {
     display.fillScreen(GxEPD_WHITE);
-    display.drawBitmap(0, 0, buffer, 296, 128, GxEPD_BLACK);
+    display.drawBitmap(0, 0, buffer, width, height, GxEPD_BLACK);
   }
   while (display.nextPage());
   Serial.println("Image displayed successfully");
@@ -380,19 +395,32 @@ bool displayRandomPBM() {
     }
   }
   
-  // Skip width and height (we know it's 296x128)
+  // Parse width and height from PBM header
+  int width = 0, height = 0;
+  
+  // Skip whitespace and read width
   while (pbmFile.available()) {
     char c = pbmFile.read();
-    if (c == ' ' || c == '\n' || c == '\r') {
-      // Skip whitespace after numbers
-      continue;
-    } else if (c >= '0' && c <= '9') {
-      // Skip digits
-      continue;
-    } else {
-      // Put back the character
-      pbmFile.seek(pbmFile.position() - 1);
-      break;
+    if (c >= '0' && c <= '9') {
+      width = width * 10 + (c - '0');
+    } else if (c == ' ' || c == '\t' || c == '\n' || c == '\r') {
+      if (width > 0) break; // We've read the width
+    } else if (c == '#') {
+      // Skip comment line
+      while (pbmFile.available() && pbmFile.read() != '\n');
+    }
+  }
+  
+  // Skip whitespace and read height
+  while (pbmFile.available()) {
+    char c = pbmFile.read();
+    if (c >= '0' && c <= '9') {
+      height = height * 10 + (c - '0');
+    } else if (c == ' ' || c == '\t' || c == '\n' || c == '\r') {
+      if (height > 0) break; // We've read the height
+    } else if (c == '#') {
+      // Skip comment line
+      while (pbmFile.available() && pbmFile.read() != '\n');
     }
   }
   
@@ -406,8 +434,10 @@ bool displayRandomPBM() {
     }
   }
   
-  // Calculate buffer size (1 bit per pixel for 296x128)
-  int bufferSize = (296 * 128 + 7) / 8; // 4736 bytes
+  Serial.println("Image dimensions: " + String(width) + "x" + String(height));
+  
+  // Calculate buffer size (1 bit per pixel)
+  int bufferSize = (width * height + 7) / 8;
   Serial.println("Allocating buffer of " + String(bufferSize) + " bytes");
   uint8_t* buffer = (uint8_t*)malloc(bufferSize);
   
@@ -438,7 +468,7 @@ bool displayRandomPBM() {
   do
   {
     display.fillScreen(GxEPD_WHITE);
-    display.drawBitmap(0, 0, buffer, 296, 128, GxEPD_RED);
+    display.drawBitmap(0, 0, buffer, width, height, GxEPD_RED);
   }
   while (display.nextPage());
   Serial.println("Image displayed successfully");
