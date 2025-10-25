@@ -95,7 +95,7 @@ bool displayGIFFile(const char* filename);
 void listImageFiles() {
   Serial.println("Listing image files in SPIFFS...");
   display.setRotation(1); // Set rotation to match display orientation
-  display.setFullWindow();
+  display.setPartialWindow(0, 0, display.width(), display.height());
   display.firstPage();
   do
   {
@@ -154,7 +154,7 @@ void listImageFiles() {
 
 void displayHelloWorld() {
   display.setRotation(1); // Set rotation to match display orientation
-  display.setFullWindow();
+  display.setPartialWindow(0, 0, display.width(), display.height());
   display.firstPage();
   do
   {
