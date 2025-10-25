@@ -29,61 +29,71 @@ bool readPBMData(Stream* stream, uint8_t* buffer, int width, int height);
 
 // Parse PBM header to get image dimensions
 bool parsePBMHeader(Stream* stream, int& width, int& height) {
-  // Skip PBM header (P4 format for binary)
+  // Read PBM header (P4 format for binary)
   char header[2];
-  stream->readBytes(header, 2); // Read "P4"
+  if (stream->readBytes(header, 2) != 2) {
+    return false;
+  }
+  
+  // Check if it's a valid PBM binary format
+  if (header[0] != 'P' || header[1] != '4') {
+    return false;
+  }
   
   // Skip comments and whitespace
   while (stream->available()) {
-    char c = stream->read();
+    char c = stream->peek();
     if (c == '#') {
       // Skip comment line
+      stream->read(); // consume the '#'
       while (stream->available() && stream->read() != '\n');
     } else if (c == ' ' || c == '\t' || c == '\n' || c == '\r') {
-      continue;
+      stream->read(); // consume whitespace
     } else {
-      // Put back the character
-      stream->peek();
       break;
     }
   }
   
-  // Parse width and height from PBM header
+  // Parse width
   width = 0;
-  height = 0;
-  
-  // Skip whitespace and read width
   while (stream->available()) {
-    char c = stream->read();
+    char c = stream->peek();
     if (c >= '0' && c <= '9') {
       width = width * 10 + (c - '0');
-    } else if (c == ' ' || c == '\t' || c == '\n' || c == '\r') {
-      if (width > 0) break; // We've read the width
-    } else if (c == '#') {
-      // Skip comment line
-      while (stream->available() && stream->read() != '\n');
+      stream->read(); // consume the digit
+    } else {
+      break;
     }
   }
   
-  // Skip whitespace and read height
+  // Skip whitespace between width and height
   while (stream->available()) {
-    char c = stream->read();
+    char c = stream->peek();
+    if (c == ' ' || c == '\t' || c == '\n' || c == '\r') {
+      stream->read(); // consume whitespace
+    } else {
+      break;
+    }
+  }
+  
+  // Parse height
+  height = 0;
+  while (stream->available()) {
+    char c = stream->peek();
     if (c >= '0' && c <= '9') {
       height = height * 10 + (c - '0');
-    } else if (c == ' ' || c == '\t' || c == '\n' || c == '\r') {
-      if (height > 0) break; // We've read the height
-    } else if (c == '#') {
-      // Skip comment line
-      while (stream->available() && stream->read() != '\n');
+      stream->read(); // consume the digit
+    } else {
+      break;
     }
   }
   
   // Skip any remaining whitespace
   while (stream->available()) {
-    char c = stream->read();
-    if (c != ' ' && c != '\t' && c != '\n' && c != '\r') {
-      // Put back the character
-      stream->peek();
+    char c = stream->peek();
+    if (c == ' ' || c == '\t' || c == '\n' || c == '\r') {
+      stream->read(); // consume whitespace
+    } else {
       break;
     }
   }
