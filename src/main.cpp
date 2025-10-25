@@ -644,7 +644,7 @@ bool fetchAndDisplayImage() {
         do
         {
           display.fillScreen(GxEPD_WHITE);
-          display.drawBitmap(0, 0, buffer, width, height, GxEPD_RED);
+          display.drawBitmap(0, 0, buffer, width, height, GxEPD_BLACK);
         }
         while (display.nextPage());
         
