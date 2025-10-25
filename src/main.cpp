@@ -53,7 +53,7 @@
 
 // Forward declarations for helper functions
 void listSPIFFSContent();
-void fetchAndDisplayImage();
+bool fetchAndDisplayImage();
 bool displayGIFFile(const char* filename);
 
 // Include configuration file (rename config.tpl to config.h)
