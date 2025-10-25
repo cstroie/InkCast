@@ -529,11 +529,32 @@ void setup() {
   listSPIFFSContent();
   Serial.println("End of SPIFFS content");
   
-  // Try to display a random image file, fallback to "Hello World" if none found
-  Serial.println("Attempting to display a random image file...");
-  if (!displayRandomImage()) {
-    Serial.println("No image files found, trying to fetch image from server...");
-    fetchAndDisplayImage();
+  // First try to fetch and display image from server
+  Serial.println("Attempting to fetch image from server...");
+  if (!fetchAndDisplayImage()) {
+    // If server fetch fails, try to display a random image file from SPIFFS
+    Serial.println("Server fetch failed, attempting to display a random image file from SPIFFS...");
+    if (!displayRandomImage()) {
+      // If no image files found, display instructions
+      Serial.println("No image files found in SPIFFS, displaying instructions...");
+      display.setRotation(1);
+      display.setFullWindow();
+      display.firstPage();
+      do
+      {
+        display.fillScreen(GxEPD_WHITE);
+        display.setFont(&FreeMonoBold12pt7b);
+        display.setCursor(20, 30);
+        display.print("No Image Files Found");
+        display.setCursor(20, 60);
+        display.print("Please add image files");
+        display.setCursor(20, 90);
+        display.print("to SPIFFS or check");
+        display.setCursor(20, 120);
+        display.print("server connectivity");
+      }
+      while (display.nextPage());
+    }
   }
   display.hibernate();
   
@@ -580,7 +601,7 @@ void listSPIFFSContent() {
 }
 
 // Helper function to fetch and display image from server
-void fetchAndDisplayImage() {
+bool fetchAndDisplayImage() {
 #if CONFIG_LOADED
   Serial.println("Fetching image from server...");
   
@@ -606,7 +627,7 @@ void fetchAndDisplayImage() {
     if (!parsePBMHeader(stream, width, height)) {
       Serial.println("Failed to parse PBM header from server");
       http.end();
-      return;
+      return false;
     }
     
     Serial.println("Image dimensions: " + String(width) + "x" + String(height));
@@ -631,6 +652,9 @@ void fetchAndDisplayImage() {
         while (display.nextPage());
         
         Serial.println("Image displayed successfully");
+        free(buffer);
+        http.end();
+        return true;
       } else {
         Serial.println("Failed to read PBM data from server");
       }
@@ -638,28 +662,14 @@ void fetchAndDisplayImage() {
     } else {
       Serial.println("Failed to allocate memory for image buffer");
     }
+  } else {
+    Serial.println("HTTP request failed with code: " + String(httpCode));
   }
   http.end();
+  return false;
 #else // CONFIG_LOADED
-  // If we couldn't fetch an image from the server, display instructions
-  Serial.println("Displaying instructions for adding image files...");
-  display.setRotation(1);
-  display.setFullWindow();
-  display.firstPage();
-  do
-  {
-    display.fillScreen(GxEPD_WHITE);
-    display.setFont(&FreeMonoBold12pt7b);
-    display.setCursor(20, 30);
-    display.print("No Image Files Found");
-    display.setCursor(20, 60);
-    display.print("Please add image files");
-    display.setCursor(20, 90);
-    display.print("to SPIFFS or check");
-    display.setCursor(20, 120);
-    display.print("server connectivity");
-  }
-  while (display.nextPage());
+  Serial.println("Configuration not loaded, cannot fetch image from server");
+  return false;
 #endif // CONFIG_LOADED
 }
 
