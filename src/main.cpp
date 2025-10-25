@@ -261,8 +261,6 @@ bool displayRandomImage() {
     
     Serial.println("Image dimensions: " + String(width) + "x" + String(height));
     
-    Serial.println("Image dimensions: " + String(width) + "x" + String(height));
-    
     // Calculate buffer size (1 bit per pixel)
     int bufferSize = (width * height + 7) / 8;
     Serial.println("Allocating buffer of " + String(bufferSize) + " bytes");
@@ -629,7 +627,8 @@ bool fetchAndDisplayImage() {
       http.end();
       return false;
     }
-    
+    // FIXME
+    width = 296, height = 128;
     Serial.println("Image dimensions: " + String(width) + "x" + String(height));
     
     // Calculate buffer size (1 bit per pixel)
