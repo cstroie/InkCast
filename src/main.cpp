@@ -639,7 +639,7 @@ bool fetchAndDisplayImage() {
       if (readPBMData(stream, buffer, width, height)) {
         // Display the image
         display.setRotation(1);
-        display.setFullWindow();
+        display.setPartialWindow(0, 0, width, height);
         display.firstPage();
         do
         {
@@ -743,7 +743,7 @@ bool displayGIFFile(const char* filename) {
   // Display the black layer first
   Serial.println("Displaying black layer...");
   display.setRotation(1);
-  display.setFullWindow();
+  display.setPartialWindow(0, 0, gifWidth, gifHeight);
   display.firstPage();
   do
   {
