@@ -183,7 +183,7 @@ bool displayRandomImage() {
   File file = root.openNextFile();
   while (file) {
     String fileName = file.name();
-    if (fileName.endsWith(".pbm") || fileName.endsWith(".gif")) {
+    if (fileName.endsWith(".pbm") || fileName.endsWith(".gif0")) {
       fileCount++;
     }
     file = root.openNextFile();
