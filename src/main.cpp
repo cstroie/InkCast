@@ -251,56 +251,15 @@ bool displayRandomImage() {
     }
     Serial.println("Successfully opened file: " + selectedFile);
     
-    // PBM files are always expected to be 296x128
-    int width = 296;
-    int height = 128;
-    // Skip the PBM header parsing since we know the dimensions
-    char header[2];
-    pbmFile.readBytes(header, 2); // Read "P4"
-    
-    // Skip comments and whitespace
-    while (pbmFile.available()) {
-      char c = pbmFile.read();
-      if (c == '#') {
-        // Skip comment line
-        while (pbmFile.available() && pbmFile.read() != '\n');
-      } else if (c == ' ' || c == '\t' || c == '\n' || c == '\r') {
-        continue;
-      } else {
-        // Put back the character
-        pbmFile.seek(pbmFile.position() - 1);
-        break;
-      }
+    // Parse PBM header to get image dimensions
+    int width = 0, height = 0;
+    if (!parsePBMHeader(&pbmFile, width, height)) {
+      Serial.println("Failed to parse PBM header");
+      pbmFile.close();
+      return false;
     }
     
-    // Skip width and height values in header
-    while (pbmFile.available()) {
-      char c = pbmFile.read();
-      if (c >= '0' && c <= '9') {
-        continue;
-      } else if (c == ' ' || c == '\t' || c == '\n' || c == '\r') {
-        if (pbmFile.available()) {
-          char next = pbmFile.peek();
-          if (next >= '0' && next <= '9') {
-            continue;
-          } else {
-            break;
-          }
-        }
-      } else {
-        break;
-      }
-    }
-    
-    // Skip any remaining whitespace
-    while (pbmFile.available()) {
-      char c = pbmFile.read();
-      if (c != ' ' && c != '\t' && c != '\n' && c != '\r') {
-        // Put back the character
-        pbmFile.seek(pbmFile.position() - 1);
-        break;
-      }
-    }
+    Serial.println("Image dimensions: " + String(width) + "x" + String(height));
     
     Serial.println("Image dimensions: " + String(width) + "x" + String(height));
     
@@ -387,55 +346,12 @@ bool displayRandomImage() {
     }
     Serial.println("Successfully opened file: " + selectedFile);
     
-    // PBM files are always expected to be 296x128
-    int width = 296;
-    int height = 128;
-    // Skip the PBM header parsing since we know the dimensions
-    char header[2];
-    pbmFile.readBytes(header, 2); // Read "P4"
-    
-    // Skip comments and whitespace
-    while (pbmFile.available()) {
-      char c = pbmFile.read();
-      if (c == '#') {
-        // Skip comment line
-        while (pbmFile.available() && pbmFile.read() != '\n');
-      } else if (c == ' ' || c == '\t' || c == '\n' || c == '\r') {
-        continue;
-      } else {
-        // Put back the character
-        pbmFile.seek(pbmFile.position() - 1);
-        break;
-      }
-    }
-    
-    // Skip width and height values in header
-    while (pbmFile.available()) {
-      char c = pbmFile.read();
-      if (c >= '0' && c <= '9') {
-        continue;
-      } else if (c == ' ' || c == '\t' || c == '\n' || c == '\r') {
-        if (pbmFile.available()) {
-          char next = pbmFile.peek();
-          if (next >= '0' && next <= '9') {
-            continue;
-          } else {
-            break;
-          }
-        }
-      } else {
-        break;
-      }
-    }
-    
-    // Skip any remaining whitespace
-    while (pbmFile.available()) {
-      char c = pbmFile.read();
-      if (c != ' ' && c != '\t' && c != '\n' && c != '\r') {
-        // Put back the character
-        pbmFile.seek(pbmFile.position() - 1);
-        break;
-      }
+    // Parse PBM header to get image dimensions
+    int width = 0, height = 0;
+    if (!parsePBMHeader(&pbmFile, width, height)) {
+      Serial.println("Failed to parse PBM header");
+      pbmFile.close();
+      return false;
     }
     
     Serial.println("Image dimensions: " + String(width) + "x" + String(height));
