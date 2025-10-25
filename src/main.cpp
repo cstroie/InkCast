@@ -627,8 +627,6 @@ bool fetchAndDisplayImage() {
       http.end();
       return false;
     }
-    // FIXME
-    width = 296, height = 128;
     Serial.println("Image dimensions: " + String(width) + "x" + String(height));
     
     // Calculate buffer size (1 bit per pixel)
