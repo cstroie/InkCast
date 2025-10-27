@@ -556,14 +556,23 @@ void setup() {
   }
   display.hibernate();
   
-#if defined(ESP8266)
+#if defined(ESP8266) || defined(ESP32)
   // Go to deep sleep
 #if CONFIG_LOADED
   if (DEEP_SLEEP_DURATION != -1) {
+#if defined(ESP8266)
     ESP.deepSleep(DEEP_SLEEP_DURATION); 
+#elif defined(ESP32)
+    esp_sleep_enable_timer_wakeup(DEEP_SLEEP_DURATION);
+    esp_deep_sleep_start();
+#endif
   }
 #else
+#if defined(ESP8266)
   ESP.deepSleep(0); 
+#elif defined(ESP32)
+  esp_deep_sleep_start();
+#endif
 #endif
 #endif
 }
