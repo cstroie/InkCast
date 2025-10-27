@@ -873,20 +873,20 @@ bool displayGIFFile(const char* filename) {
 }
 
 /**
- * Turn on the built-in LED if configured
+ * Turn on the built-in LED if configured (active low)
  */
 void ledOn() {
 #if defined(LED_PIN) && LED_PIN != -1
-  digitalWrite(LED_PIN, HIGH);
+  digitalWrite(LED_PIN, LOW);
 #endif
 }
 
 /**
- * Turn off the built-in LED if configured
+ * Turn off the built-in LED if configured (active low)
  */
 void ledOff() {
 #if defined(LED_PIN) && LED_PIN != -1
-  digitalWrite(LED_PIN, LOW);
+  digitalWrite(LED_PIN, HIGH);
 #endif
 }
 
