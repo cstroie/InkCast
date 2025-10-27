@@ -52,10 +52,32 @@
 #include "display.h"
 
 // Forward declarations for helper functions
+/**
+ * List all files in SPIFFS and print their names and sizes to Serial
+ */
 void listSPIFFSContent();
+
+/**
+ * Fetch an image from the configured server URL and display it
+ * @return true if successful, false otherwise
+ */
 bool fetchAndDisplayImage();
+
+/**
+ * Display a GIF file from SPIFFS with 3-color separation
+ * @param filename Path to the GIF file in SPIFFS
+ * @return true if successful, false otherwise
+ */
 bool displayGIFFile(const char* filename);
+
+/**
+ * Turn on the built-in LED if configured
+ */
 void ledOn();
+
+/**
+ * Turn off the built-in LED if configured
+ */
 void ledOff();
 
 // Include configuration file (rename config.tpl to config.h)
@@ -94,6 +116,9 @@ void ledOff();
 
 #include <stdlib.h>
 
+/**
+ * List image files in SPIFFS and display them on the e-paper screen
+ */
 void listImageFiles() {
   Serial.println("Listing image files in SPIFFS...");
   display.setRotation(1); // Set rotation to match display orientation
@@ -154,6 +179,9 @@ void listImageFiles() {
   while (display.nextPage());
 }
 
+/**
+ * Clear the entire e-paper display
+ */
 void clearDisplay() {
   display.setRotation(1); // Set rotation to match display orientation
   display.setFullWindow();
@@ -165,6 +193,9 @@ void clearDisplay() {
   while (display.nextPage());
 }
 
+/**
+ * Display "Hello World" message on the e-paper screen
+ */
 void displayHelloWorld() {
   display.setRotation(1); // Set rotation to match display orientation
   display.setPartialWindow(0, 0, display.width(), display.height());
@@ -430,6 +461,10 @@ bool displayRandomImage() {
   return false;
 }
 
+/**
+ * Setup function - initializes the system, connects to WiFi, mounts SPIFFS,
+ * and displays an image (either from server or SPIFFS)
+ */
 void setup() {
   Serial.begin(115200);
   // Initialize random seed with better entropy
@@ -644,7 +679,10 @@ void setup() {
 #endif
 }
 
-// Helper function to list SPIFFS content
+/**
+ * Helper function to list SPIFFS content
+ * Prints file names and sizes to Serial
+ */
 void listSPIFFSContent() {
 #if defined(ESP32)
   File root = SPIFFS.open("/");
@@ -676,7 +714,11 @@ void listSPIFFSContent() {
 #endif
 }
 
-// Helper function to fetch and display image from server
+/**
+ * Helper function to fetch and display image from server
+ * Downloads a PBM image from the configured URL and displays it
+ * @return true if successful, false otherwise
+ */
 bool fetchAndDisplayImage() {
 #if CONFIG_LOADED
   Serial.println("Fetching image from server...");
@@ -760,7 +802,16 @@ static uint16_t gifWidth, gifHeight;
 static uint8_t* blackBuffer = nullptr;
 static uint8_t* redBuffer = nullptr;
 
-// Callback function for TJpg_Decoder
+/**
+ * Callback function for TJpg_Decoder
+ * Processes pixels into black/white and red buffers for 3-color display
+ * @param x X coordinate of the pixel block
+ * @param y Y coordinate of the pixel block
+ * @param w Width of the pixel block
+ * @param h Height of the pixel block
+ * @param bitmap Pointer to the pixel data
+ * @return true to continue processing, false to abort
+ */
 bool jpegDrawCallback(int16_t x, int16_t y, uint16_t w, uint16_t h, uint16_t* bitmap) {
   // Process pixels into black/white and red buffers
   for (uint16_t i = 0; i < w; i++) {
@@ -792,7 +843,12 @@ bool jpegDrawCallback(int16_t x, int16_t y, uint16_t w, uint16_t h, uint16_t* bi
   return true;
 }
 
-// Display GIF file using TJpg_Decoder
+/**
+ * Display GIF file using TJpg_Decoder
+ * Decodes a GIF file and displays it with 3-color separation
+ * @param filename Path to the GIF file in SPIFFS
+ * @return true if successful, false otherwise
+ */
 bool displayGIFFile(const char* filename) {
   // Initialize TJpg_Decoder
   TJpgDec.setSwapBytes(true);
@@ -857,17 +913,25 @@ bool displayGIFFile(const char* filename) {
   return true;
 }
 
-// LED control functions
+/**
+ * Turn on the built-in LED if configured
+ */
 void ledOn() {
 #if defined(LED_PIN) && LED_PIN != -1
   digitalWrite(LED_PIN, HIGH);
 #endif
 }
 
+/**
+ * Turn off the built-in LED if configured
+ */
 void ledOff() {
 #if defined(LED_PIN) && LED_PIN != -1
   digitalWrite(LED_PIN, LOW);
 #endif
 }
 
+/**
+ * Main loop function - intentionally left empty as this is a one-shot application
+ */
 void loop() {};
