@@ -152,6 +152,17 @@ void listImageFiles() {
   while (display.nextPage());
 }
 
+void clearDisplay() {
+  display.setRotation(1); // Set rotation to match display orientation
+  display.setFullWindow();
+  display.firstPage();
+  do
+  {
+    display.fillScreen(GxEPD_WHITE);
+  }
+  while (display.nextPage());
+}
+
 void displayHelloWorld() {
   display.setRotation(1); // Set rotation to match display orientation
   display.setPartialWindow(0, 0, display.width(), display.height());
@@ -600,14 +611,6 @@ void setup() {
         while (digitalRead(BUTTON_PIN) == LOW) {
           delay(10);
         }
-        
-        // Clear display
-        display.setRotation(1);
-        display.setFullWindow();
-        display.firstPage();
-        do {
-          display.fillScreen(GxEPD_WHITE);
-        } while (display.nextPage());
         
         // Try to fetch and display new image
         if (!fetchAndDisplayImage()) {
