@@ -559,7 +559,9 @@ void setup() {
 #if defined(ESP8266)
   // Go to deep sleep
 #if CONFIG_LOADED
-  ESP.deepSleep(DEEP_SLEEP_DURATION); 
+  if (DEEP_SLEEP_DURATION != -1) {
+    ESP.deepSleep(DEEP_SLEEP_DURATION); 
+  }
 #else
   ESP.deepSleep(0); 
 #endif
