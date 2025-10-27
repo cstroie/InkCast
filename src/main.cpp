@@ -170,6 +170,12 @@ void displayHelloWorld() {
 
 bool displayRandomImage() {
   Serial.println("Searching for image files to display...");
+  
+  // Turn on LED if configured
+#if defined(LED_PIN) && LED_PIN != -1
+  digitalWrite(LED_PIN, HIGH);
+#endif
+  
   // Count image files
   int fileCount = 0;
   
@@ -407,6 +413,11 @@ bool displayRandomImage() {
 #endif
   
   // Add a default return statement to avoid compiler warning
+  // Turn off LED
+#if defined(LED_PIN) && LED_PIN != -1
+  digitalWrite(LED_PIN, LOW);
+#endif
+  
   return false;
 }
 
@@ -526,6 +537,12 @@ void setup() {
   Serial.println("SPIFFS content:");
   listSPIFFSContent();
   Serial.println("End of SPIFFS content");
+  
+  // Initialize LED pin if configured
+#if CONFIG_LOADED && defined(LED_PIN) && LED_PIN != -1
+  pinMode(LED_PIN, OUTPUT);
+  digitalWrite(LED_PIN, LOW); // Start with LED off
+#endif
   
   // First try to fetch and display image from server
   Serial.println("Attempting to fetch image from server...");
@@ -663,6 +680,11 @@ bool fetchAndDisplayImage() {
 #if CONFIG_LOADED
   Serial.println("Fetching image from server...");
   
+  // Turn on LED if configured
+#if defined(LED_PIN) && LED_PIN != -1
+  digitalWrite(LED_PIN, HIGH);
+#endif
+  
 #if defined(ESP32)
   HTTPClient http;
   http.begin(SERVER_URL);
@@ -723,6 +745,12 @@ bool fetchAndDisplayImage() {
     Serial.println("HTTP request failed with code: " + String(httpCode));
   }
   http.end();
+  
+  // Turn off LED
+#if defined(LED_PIN) && LED_PIN != -1
+  digitalWrite(LED_PIN, LOW);
+#endif
+  
   return false;
 #else // CONFIG_LOADED
   Serial.println("Configuration not loaded, cannot fetch image from server");

@@ -33,6 +33,9 @@
 // Built-in button pin (set to -1 to disable button functionality)
 #define BUTTON_PIN -1
 
+// Built-in LED pin (set to -1 to disable LED functionality)
+#define LED_PIN -1
+
 // Server URL for random pictures
 #define SERVER_URL "https://eridu.eu.org/test.pbm"
 
