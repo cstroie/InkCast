@@ -632,47 +632,6 @@ void setup() {
     esp_sleep_enable_timer_wakeup(DEEP_SLEEP_DURATION);
     esp_deep_sleep_start();
 #endif
-  } else {
-    // If deep sleep is disabled, monitor button for new image requests
-#if CONFIG_LOADED && defined(BUTTON_PIN) && BUTTON_PIN != -1
-    pinMode(BUTTON_PIN, INPUT_PULLUP);
-    
-    while (true) {
-      // Check if button is pressed (active low)
-      if (digitalRead(BUTTON_PIN) == LOW) {
-        Serial.println("Button pressed, fetching new image...");
-        
-        // Debounce delay
-        delay(50);
-        
-        // Wait for button release
-        while (digitalRead(BUTTON_PIN) == LOW) {
-          delay(10);
-        }
-        
-        // Try to fetch and display new image
-        if (!fetchAndDisplayImage()) {
-          // If server fetch fails, try to display a random image file from SPIFFS
-          if (!displayRandomImage()) {
-            // If no image files found, display error
-            display.setRotation(1);
-            display.setFullWindow();
-            display.firstPage();
-            do {
-              display.fillScreen(GxEPD_WHITE);
-              display.setFont(&FreeMonoBold12pt7b);
-              display.setCursor(20, 50);
-              display.print("No Images Available");
-            } while (display.nextPage());
-          }
-        }
-        display.hibernate();
-      }
-      
-      // Small delay to prevent excessive CPU usage
-      delay(100);
-    }
-#endif
   }
 #else
 #if defined(ESP8266)
@@ -932,6 +891,42 @@ void ledOff() {
 }
 
 /**
- * Main loop function - intentionally left empty as this is a one-shot application
+ * Main loop function - handles button presses when deep sleep is disabled
  */
-void loop() {};
+void loop() {
+#if CONFIG_LOADED && defined(DEEP_SLEEP_DURATION) && DEEP_SLEEP_DURATION == -1 && defined(BUTTON_PIN) && BUTTON_PIN != -1
+  // Check if button is pressed (active low)
+  if (digitalRead(BUTTON_PIN) == LOW) {
+    Serial.println("Button pressed, fetching new image...");
+    
+    // Debounce delay
+    delay(50);
+    
+    // Wait for button release
+    while (digitalRead(BUTTON_PIN) == LOW) {
+      delay(10);
+    }
+    
+    // Try to fetch and display new image
+    if (!fetchAndDisplayImage()) {
+      // If server fetch fails, try to display a random image file from SPIFFS
+      if (!displayRandomImage()) {
+        // If no image files found, display error
+        display.setRotation(1);
+        display.setFullWindow();
+        display.firstPage();
+        do {
+          display.fillScreen(GxEPD_WHITE);
+          display.setFont(&FreeMonoBold12pt7b);
+          display.setCursor(20, 50);
+          display.print("No Images Available");
+        } while (display.nextPage());
+      }
+    }
+    display.hibernate();
+  }
+  
+  // Small delay to prevent excessive CPU usage
+  delay(100);
+#endif
+}
