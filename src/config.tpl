@@ -28,6 +28,9 @@
 // Example: 300e6 = 300 seconds = 5 minutes
 #define DEEP_SLEEP_DURATION -1
 
+// Built-in button pin (set to -1 to disable button functionality)
+#define BUTTON_PIN -1
+
 // Server URL for random pictures
 #define SERVER_URL "https://eridu.eu.org/test.pbm"
 
