@@ -51,6 +51,11 @@
 #include "pbm.h"
 #include "display.h"
 
+// Global variables for GIF processing
+static uint16_t gifWidth, gifHeight;
+static uint8_t* blackBuffer = nullptr;
+static uint8_t* redBuffer = nullptr;
+
 // Forward declarations for helper functions
 /**
  * List all files in SPIFFS and print their names and sizes to Serial
@@ -796,11 +801,6 @@ bool fetchAndDisplayImage() {
   return false;
 #endif // CONFIG_LOADED
 }
-
-// Global variables for GIF processing
-static uint16_t gifWidth, gifHeight;
-static uint8_t* blackBuffer = nullptr;
-static uint8_t* redBuffer = nullptr;
 
 /**
  * Callback function for TJpg_Decoder
