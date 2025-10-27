@@ -55,6 +55,8 @@
 void listSPIFFSContent();
 bool fetchAndDisplayImage();
 bool displayGIFFile(const char* filename);
+void ledOn();
+void ledOff();
 
 // Include configuration file (rename config.tpl to config.h)
 #if defined(__has_include)
@@ -183,9 +185,7 @@ bool displayRandomImage() {
   Serial.println("Searching for image files to display...");
   
   // Turn on LED if configured
-#if defined(LED_PIN) && LED_PIN != -1
-  digitalWrite(LED_PIN, HIGH);
-#endif
+  ledOn();
   
   // Count image files
   int fileCount = 0;
@@ -425,9 +425,7 @@ bool displayRandomImage() {
   
   // Add a default return statement to avoid compiler warning
   // Turn off LED
-#if defined(LED_PIN) && LED_PIN != -1
-  digitalWrite(LED_PIN, LOW);
-#endif
+  ledOff();
   
   return false;
 }
@@ -552,7 +550,7 @@ void setup() {
   // Initialize LED pin if configured
 #if CONFIG_LOADED && defined(LED_PIN) && LED_PIN != -1
   pinMode(LED_PIN, OUTPUT);
-  digitalWrite(LED_PIN, LOW); // Start with LED off
+  ledOff(); // Start with LED off
 #endif
   
   // First try to fetch and display image from server
@@ -684,9 +682,7 @@ bool fetchAndDisplayImage() {
   Serial.println("Fetching image from server...");
   
   // Turn on LED if configured
-#if defined(LED_PIN) && LED_PIN != -1
-  digitalWrite(LED_PIN, HIGH);
-#endif
+  ledOn();
   
 #if defined(ESP32)
   HTTPClient http;
@@ -750,9 +746,7 @@ bool fetchAndDisplayImage() {
   http.end();
   
   // Turn off LED
-#if defined(LED_PIN) && LED_PIN != -1
-  digitalWrite(LED_PIN, LOW);
-#endif
+  ledOff();
   
   return false;
 #else // CONFIG_LOADED
@@ -861,6 +855,19 @@ bool displayGIFFile(const char* filename) {
   Serial.println("GIF displayed successfully with 3-color separation");
   
   return true;
+}
+
+// LED control functions
+void ledOn() {
+#if defined(LED_PIN) && LED_PIN != -1
+  digitalWrite(LED_PIN, HIGH);
+#endif
+}
+
+void ledOff() {
+#if defined(LED_PIN) && LED_PIN != -1
+  digitalWrite(LED_PIN, LOW);
+#endif
 }
 
 void loop() {};
