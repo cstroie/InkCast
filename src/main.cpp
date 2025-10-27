@@ -724,6 +724,11 @@ bool fetchAndDisplayImage() {
     if (buffer) {
       // Read image data
       if (readPBMData(stream, buffer, width, height)) {
+        // Invert the buffer data for correct display (PBM format: 0=white, 1=black)
+        for (int i = 0; i < bufferSize; i++) {
+          buffer[i] = ~buffer[i];
+        }
+        
         // Display the image
         display.setRotation(1);
         display.setPartialWindow(0, 0, width, height);
