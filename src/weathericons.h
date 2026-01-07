@@ -16,7 +16,8 @@
 // from the actual TTF file using font conversion tools
 
 // Font structure
-extern const uint8_t weathericons_font[];
+#include <Fonts/FreeMonoBold12pt7b.h> // Include a standard font as a placeholder
+extern const GFXfont weathericons_font;
 
 // Icon Unicode mappings
 #define WI_DAY_SUNNY 0xF00D

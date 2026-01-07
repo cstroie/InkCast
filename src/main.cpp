@@ -305,16 +305,8 @@ void displayWeather() {
     // Draw weather icon using TTF font
     uint16_t iconCode = getIconCodeForWeather(weatherIcon);
 
-    // Try to load font from SPIFFS
-    if (SPIFFS.exists("/weathericons.ttf")) {
-      Serial.println("Loading weather icons font from SPIFFS...");
-      // In practice, you would load the font file here
-      // For now, we'll use the placeholder font
-      display.setFont(&weathericons_font);
-    } else {
-      Serial.println("Weather icons font not available, using placeholder");
-      display.setFont(&weathericons_font);
-    }
+    // Use the weather icons font
+    display.setFont(&weathericons_font);
 
     display.setTextSize(4); // Scale factor
     display.setCursor(iconX, iconY + 80); // Adjust for baseline
