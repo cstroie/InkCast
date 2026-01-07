@@ -90,9 +90,9 @@ void drawMistIcon(DisplayType& display, int x, int y) {
 
 // Explicit template instantiations for the display type used in the project
 #include "display.h"
-template void drawSunIcon<GxEPD2_DISPLAY_CLASS<GxEPD2_DRIVER_CLASS, MAX_HEIGHT(GxEPD2_DRIVER_CLASS)>>(GxEPD2_DISPLAY_CLASS<GxEPD2_DRIVER_CLASS, MAX_HEIGHT(GxEPD2_DRIVER_CLASS)>& display, int x, int y);
-template void drawCloudIcon<GxEPD2_DISPLAY_CLASS<GxEPD2_DRIVER_CLASS, MAX_HEIGHT(GxEPD2_DRIVER_CLASS)>>(GxEPD2_DISPLAY_CLASS<GxEPD2_DRIVER_CLASS, MAX_HEIGHT(GxEPD2_DRIVER_CLASS)>& display, int x, int y);
-template void drawRainIcon<GxEPD2_DISPLAY_CLASS<GxEPD2_DRIVER_CLASS, MAX_HEIGHT(GxEPD2_DRIVER_CLASS)>>(GxEPD2_DISPLAY_CLASS<GxEPD2_DRIVER_CLASS, MAX_HEIGHT(GxEPD2_DRIVER_CLASS)>& display, int x, int y);
-template void drawSnowIcon<GxEPD2_DISPLAY_CLASS<GxEPD2_DRIVER_CLASS, MAX_HEIGHT(GxEPD2_DRIVER_CLASS)>>(GxEPD2_DISPLAY_CLASS<GxEPD2_DRIVER_CLASS, MAX_HEIGHT(GxEPD2_DRIVER_CLASS)>& display, int x, int y);
-template void drawThunderIcon<GxEPD2_DISPLAY_CLASS<GxEPD2_DRIVER_CLASS, MAX_HEIGHT(GxEPD2_DRIVER_CLASS)>>(GxEPD2_DISPLAY_CLASS<GxEPD2_DRIVER_CLASS, MAX_HEIGHT(GxEPD2_DRIVER_CLASS)>& display, int x, int y);
-template void drawMistIcon<GxEPD2_DISPLAY_CLASS<GxEPD2_DRIVER_CLASS, MAX_HEIGHT(GxEPD2_DRIVER_CLASS)>>(GxEPD2_DISPLAY_CLASS<GxEPD2_DRIVER_CLASS, MAX_HEIGHT(GxEPD2_DRIVER_CLASS)>& display, int x, int y);
+template void drawSunIcon<GxEPD2_3C<GxEPD2_290_C90c, GxEPD2_290_C90c::HEIGHT>>(GxEPD2_3C<GxEPD2_290_C90c, GxEPD2_290_C90c::HEIGHT>& display, int x, int y);
+template void drawCloudIcon<GxEPD2_3C<GxEPD2_290_C90c, GxEPD2_290_C90c::HEIGHT>>(GxEPD2_3C<GxEPD2_290_C90c, GxEPD2_290_C90c::HEIGHT>& display, int x, int y);
+template void drawRainIcon<GxEPD2_3C<GxEPD2_290_C90c, GxEPD2_290_C90c::HEIGHT>>(GxEPD2_3C<GxEPD2_290_C90c, GxEPD2_290_C90c::HEIGHT>& display, int x, int y);
+template void drawSnowIcon<GxEPD2_3C<GxEPD2_290_C90c, GxEPD2_290_C90c::HEIGHT>>(GxEPD2_3C<GxEPD2_290_C90c, GxEPD2_290_C90c::HEIGHT>& display, int x, int y);
+template void drawThunderIcon<GxEPD2_3C<GxEPD2_290_C90c, GxEPD2_290_C90c::HEIGHT>>(GxEPD2_3C<GxEPD2_290_C90c, GxEPD2_290_C90c::HEIGHT>& display, int x, int y);
+template void drawMistIcon<GxEPD2_3C<GxEPD2_290_C90c, GxEPD2_290_C90c::HEIGHT>>(GxEPD2_3C<GxEPD2_290_C90c, GxEPD2_290_C90c::HEIGHT>& display, int x, int y);

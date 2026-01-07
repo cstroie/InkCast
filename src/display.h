@@ -1,3 +1,11 @@
+#include <GxEPD2_BW.h>
+#include <GxEPD2_3C.h>
+#include <GxEPD2_4C.h>
+#include <GxEPD2_7C.h>
+#include <GxEPD2_290.h>
+#include <GxEPD2_290_T94.h>
+#include <GxEPD2_290_C90c.h>
+
 // Display Library example for SPI e-paper panels from Dalian Good Display and boards from Waveshare.
 // Requires HW SPI and Adafruit_GFX. Caution: the e-paper panels require 3.3V supply AND data lines!
 //
