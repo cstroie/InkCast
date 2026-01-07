@@ -18,13 +18,14 @@
  */
 
 #include "icons.h"
-#include "display.h"
+#include <GxEPD2_BW.h>
 
 // Draw a simple sun icon
-void drawSunIcon(int x, int y) {
+template<typename DisplayType>
+void drawSunIcon(DisplayType& display, int x, int y) {
   // Draw sun circle
   display.fillCircle(x + 10, y + 10, 8, GxEPD_BLACK);
-  
+
   // Draw sun rays
   display.drawLine(x + 10, y, x + 10, y + 4, GxEPD_BLACK);      // Top
   display.drawLine(x + 10, y + 16, x + 10, y + 20, GxEPD_BLACK); // Bottom
@@ -37,7 +38,8 @@ void drawSunIcon(int x, int y) {
 }
 
 // Draw a simple cloud icon
-void drawCloudIcon(int x, int y) {
+template<typename DisplayType>
+void drawCloudIcon(DisplayType& display, int x, int y) {
   // Draw cloud body
   display.fillCircle(x + 8, y + 12, 6, GxEPD_BLACK);
   display.fillCircle(x + 16, y + 12, 6, GxEPD_BLACK);
@@ -46,8 +48,9 @@ void drawCloudIcon(int x, int y) {
 }
 
 // Draw a simple rain icon
-void drawRainIcon(int x, int y) {
-  drawCloudIcon(x, y);
+template<typename DisplayType>
+void drawRainIcon(DisplayType& display, int x, int y) {
+  drawCloudIcon(display, x, y);
   // Draw rain drops
   display.drawLine(x + 8, y + 20, x + 8, y + 26, GxEPD_BLACK);
   display.drawLine(x + 16, y + 20, x + 16, y + 26, GxEPD_BLACK);
@@ -55,8 +58,9 @@ void drawRainIcon(int x, int y) {
 }
 
 // Draw a simple snow icon
-void drawSnowIcon(int x, int y) {
-  drawCloudIcon(x, y);
+template<typename DisplayType>
+void drawSnowIcon(DisplayType& display, int x, int y) {
+  drawCloudIcon(display, x, y);
   // Draw snowflakes
   display.drawLine(x + 8, y + 20, x + 12, y + 24, GxEPD_BLACK);
   display.drawLine(x + 12, y + 20, x + 8, y + 24, GxEPD_BLACK);
@@ -65,8 +69,9 @@ void drawSnowIcon(int x, int y) {
 }
 
 // Draw a simple thunder icon
-void drawThunderIcon(int x, int y) {
-  drawCloudIcon(x, y);
+template<typename DisplayType>
+void drawThunderIcon(DisplayType& display, int x, int y) {
+  drawCloudIcon(display, x, y);
   // Draw lightning bolt
   display.drawLine(x + 12, y + 20, x + 12, y + 28, GxEPD_BLACK);
   display.drawLine(x + 12, y + 28, x + 8, y + 24, GxEPD_BLACK);
@@ -74,10 +79,20 @@ void drawThunderIcon(int x, int y) {
 }
 
 // Draw a simple mist/fog icon
-void drawMistIcon(int x, int y) {
-  drawCloudIcon(x, y);
+template<typename DisplayType>
+void drawMistIcon(DisplayType& display, int x, int y) {
+  drawCloudIcon(display, x, y);
   // Draw mist lines
   display.drawLine(x + 4, y + 22, x + 8, y + 22, GxEPD_BLACK);
   display.drawLine(x + 10, y + 24, x + 16, y + 24, GxEPD_BLACK);
   display.drawLine(x + 18, y + 22, x + 22, y + 22, GxEPD_BLACK);
 }
+
+// Explicit template instantiations for the display type used in the project
+#include "display.h"
+template void drawSunIcon<GxEPD2_DISPLAY_CLASS<GxEPD2_DRIVER_CLASS, MAX_HEIGHT(GxEPD2_DRIVER_CLASS)>>(GxEPD2_DISPLAY_CLASS<GxEPD2_DRIVER_CLASS, MAX_HEIGHT(GxEPD2_DRIVER_CLASS)>& display, int x, int y);
+template void drawCloudIcon<GxEPD2_DISPLAY_CLASS<GxEPD2_DRIVER_CLASS, MAX_HEIGHT(GxEPD2_DRIVER_CLASS)>>(GxEPD2_DISPLAY_CLASS<GxEPD2_DRIVER_CLASS, MAX_HEIGHT(GxEPD2_DRIVER_CLASS)>& display, int x, int y);
+template void drawRainIcon<GxEPD2_DISPLAY_CLASS<GxEPD2_DRIVER_CLASS, MAX_HEIGHT(GxEPD2_DRIVER_CLASS)>>(GxEPD2_DISPLAY_CLASS<GxEPD2_DRIVER_CLASS, MAX_HEIGHT(GxEPD2_DRIVER_CLASS)>& display, int x, int y);
+template void drawSnowIcon<GxEPD2_DISPLAY_CLASS<GxEPD2_DRIVER_CLASS, MAX_HEIGHT(GxEPD2_DRIVER_CLASS)>>(GxEPD2_DISPLAY_CLASS<GxEPD2_DRIVER_CLASS, MAX_HEIGHT(GxEPD2_DRIVER_CLASS)>& display, int x, int y);
+template void drawThunderIcon<GxEPD2_DISPLAY_CLASS<GxEPD2_DRIVER_CLASS, MAX_HEIGHT(GxEPD2_DRIVER_CLASS)>>(GxEPD2_DISPLAY_CLASS<GxEPD2_DRIVER_CLASS, MAX_HEIGHT(GxEPD2_DRIVER_CLASS)>& display, int x, int y);
+template void drawMistIcon<GxEPD2_DISPLAY_CLASS<GxEPD2_DRIVER_CLASS, MAX_HEIGHT(GxEPD2_DRIVER_CLASS)>>(GxEPD2_DISPLAY_CLASS<GxEPD2_DRIVER_CLASS, MAX_HEIGHT(GxEPD2_DRIVER_CLASS)>& display, int x, int y);
