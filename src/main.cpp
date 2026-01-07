@@ -215,7 +215,10 @@ void setup() {
   //display.init(115200); 
   // USE THIS for Waveshare boards with "clever" reset circuit, 2ms reset pulse
   display.init(115200, true, 2, false);
-  
+
+  // Display "Hello World" on startup
+  displayHelloWorld();
+
   // Initialize SPIFFS
 #if defined(ESP32)
   Serial.println("Mounting SPIFFS...");
