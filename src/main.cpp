@@ -119,15 +119,25 @@ const char* weatherIcons[] = {
  * Get geolocation data from ip-api.com
  */
 String getGeolocation() {
+  Serial.println("Fetching geolocation data from ip-api.com...");
   HTTPClient http;
   String url = "http://ip-api.com/json/?fields=status,message,country,countryCode,region,regionName,city,zip,lat,lon,timezone";
+
+  Serial.print("Connecting to: ");
+  Serial.println(url);
 
   http.begin(url);
   int httpCode = http.GET();
 
+  Serial.print("HTTP Response Code: ");
+  Serial.println(httpCode);
+
   if (httpCode > 0) {
     if (httpCode == HTTP_CODE_OK) {
       String payload = http.getString();
+      Serial.print("Received payload: ");
+      Serial.println(payload);
+
       StaticJsonDocument<1024> doc;
       deserializeJson(doc, payload);
 
@@ -137,8 +147,19 @@ String getGeolocation() {
                          String(doc["country"].as<const char*>());
         String lat = String(doc["lat"].as<float>());
         String lon = String(doc["lon"].as<float>());
+
+        Serial.print("Geolocation: ");
+        Serial.println(location);
+        Serial.print("Coordinates: ");
+        Serial.print(lat);
+        Serial.print(", ");
+        Serial.println(lon);
+
         http.end();
         return location + "|" + lat + "|" + lon;
+      } else {
+        Serial.print("Geolocation API error: ");
+        Serial.println(doc["message"].as<const char*>());
       }
     }
   } else {
@@ -153,6 +174,12 @@ String getGeolocation() {
  * Get weather data from Open-Meteo API
  */
 String getWeatherData(float lat, float lon) {
+  Serial.println("Fetching weather data from Open-Meteo API...");
+  Serial.print("Coordinates: ");
+  Serial.print(lat, 6);
+  Serial.print(", ");
+  Serial.println(lon, 6);
+
   HTTPClient http;
   String url = "https://api.open-meteo.com/v1/forecast";
 
@@ -162,19 +189,34 @@ String getWeatherData(float lat, float lon) {
 
 #if WEATHER_UNITS == 0
   params += "&temperature_unit=fahrenheit&wind_speed_unit=mph&precipitation_unit=inch";
+  Serial.println("Using imperial units");
 #else
   params += "&temperature_unit=celsius&wind_speed_unit=kmh&precipitation_unit=mm";
+  Serial.println("Using metric units");
 #endif
+
+  Serial.print("Request URL: ");
+  Serial.println(url);
+  Serial.print("Request params: ");
+  Serial.println(params);
 
   http.begin(url);
   http.addHeader("Content-Type", "application/x-www-form-urlencoded");
   int httpCode = http.POST(params);
 
+  Serial.print("HTTP Response Code: ");
+  Serial.println(httpCode);
+
   if (httpCode > 0) {
     if (httpCode == HTTP_CODE_OK) {
       String payload = http.getString();
+      Serial.print("Received weather data: ");
+      Serial.println(payload);
       http.end();
       return payload;
+    } else {
+      Serial.print("Weather API error, HTTP code: ");
+      Serial.println(httpCode);
     }
   } else {
     Serial.printf("HTTP error: %s\n", http.errorToString(httpCode).c_str());
@@ -262,7 +304,18 @@ void displayWeather() {
 
     // Draw weather icon using TTF font
     uint16_t iconCode = getIconCodeForWeather(weatherIcon);
-    display.setFont(weathericons_font);
+
+    // Try to load font from SPIFFS
+    if (SPIFFS.exists("/weathericons.ttf")) {
+      Serial.println("Loading weather icons font from SPIFFS...");
+      // In practice, you would load the font file here
+      // For now, we'll use the placeholder font
+      display.setFont(weathericons_font);
+    } else {
+      Serial.println("Weather icons font not available, using placeholder");
+      display.setFont(weathericons_font);
+    }
+
     display.setTextSize(4); // Scale factor
     display.setCursor(iconX, iconY + 80); // Adjust for baseline
     display.print((char)iconCode);
@@ -409,6 +462,72 @@ randomSeed(esp_random());
   // Initialize weather station if enabled
 #if WEATHER_ENABLED
   Serial.println("Initializing weather station...");
+
+  // Check if weather icons font exists in SPIFFS, download if not
+  if (!SPIFFS.exists("/weathericons.ttf")) {
+    Serial.println("Weather icons font not found in SPIFFS, downloading...");
+    HTTPClient http;
+    String fontUrl = "https://github.com/erikflowers/weather-icons/raw/master/font/weathericons-regular-webfont.ttf";
+
+    http.begin(fontUrl);
+    int httpCode = http.GET();
+
+    if (httpCode == HTTP_CODE_OK) {
+      int contentLength = http.getSize();
+      Serial.print("Downloading font file (");
+      Serial.print(contentLength);
+      Serial.println(" bytes)...");
+
+      File fontFile = SPIFFS.open("/weathericons.ttf", FILE_WRITE);
+      if (!fontFile) {
+        Serial.println("Failed to create font file in SPIFFS");
+      } else {
+        // Stream the font file
+        WiFiClient *stream = http.getStreamPtr();
+        uint8_t buffer[512];
+        size_t bytesReceived;
+        size_t totalBytes = 0;
+
+        while (http.connected() && (contentLength > 0 || contentLength == -1)) {
+          bytesReceived = stream->available();
+          if (bytesReceived) {
+            size_t bytesToRead = min((size_t)512, bytesReceived);
+            size_t bytesRead = stream->readBytes(buffer, bytesToRead);
+
+            if (fontFile.write(buffer, bytesRead) != bytesRead) {
+              Serial.println("Error writing to font file");
+              break;
+            }
+
+            totalBytes += bytesRead;
+            if (contentLength > 0) {
+              contentLength -= bytesRead;
+            }
+
+            // Print progress every 10KB
+            if (totalBytes % 10240 == 0) {
+              Serial.print("Downloaded: ");
+              Serial.print(totalBytes);
+              Serial.println(" bytes");
+            }
+          }
+          delay(1);
+        }
+
+        fontFile.close();
+        Serial.print("Font download complete: ");
+        Serial.print(totalBytes);
+        Serial.println(" bytes");
+      }
+    } else {
+      Serial.print("Failed to download font, HTTP code: ");
+      Serial.println(httpCode);
+    }
+    http.end();
+  } else {
+    Serial.println("Weather icons font found in SPIFFS");
+  }
+
   updateWeatherData();
   if (currentLocation != "") {
     displayWeather();
