@@ -22,12 +22,15 @@
 
 #include "display.h"
 
+#include <GxEPD2_BW.h>
+#include <GxEPD2_290.h>
+
 // Simple weather icon drawing functions
-void drawSunIcon(int x, int y);
-void drawCloudIcon(int x, int y);
-void drawRainIcon(int x, int y);
-void drawSnowIcon(int x, int y);
-void drawThunderIcon(int x, int y);
-void drawMistIcon(int x, int y);
+void drawSunIcon(GxEPD2_BW<GxEPD2_290, GxEPD2_290::HEIGHT>& display, int x, int y);
+void drawCloudIcon(GxEPD2_BW<GxEPD2_290, GxEPD2_290::HEIGHT>& display, int x, int y);
+void drawRainIcon(GxEPD2_BW<GxEPD2_290, GxEPD2_290::HEIGHT>& display, int x, int y);
+void drawSnowIcon(GxEPD2_BW<GxEPD2_290, GxEPD2_290::HEIGHT>& display, int x, int y);
+void drawThunderIcon(GxEPD2_BW<GxEPD2_290, GxEPD2_290::HEIGHT>& display, int x, int y);
+void drawMistIcon(GxEPD2_BW<GxEPD2_290, GxEPD2_290::HEIGHT>& display, int x, int y);
 
 #endif // _ICONS_H_
