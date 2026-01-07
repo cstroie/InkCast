@@ -138,7 +138,7 @@ String getGeolocation() {
       Serial.print("Received payload: ");
       Serial.println(payload);
 
-      StaticJsonDocument<1024> doc;
+      JsonDocument doc;
       deserializeJson(doc, payload);
 
       if (doc["status"] == "success") {
@@ -254,7 +254,7 @@ void updateWeatherData() {
     return;
   }
 
-  StaticJsonDocument<2048> doc;
+  JsonDocument doc;
   deserializeJson(doc, weatherData);
 
   int weatherCode = doc["daily"]["weather_code"][0];
@@ -310,10 +310,10 @@ void displayWeather() {
       Serial.println("Loading weather icons font from SPIFFS...");
       // In practice, you would load the font file here
       // For now, we'll use the placeholder font
-      display.setFont(weathericons_font);
+      display.setFont(&weathericons_font);
     } else {
       Serial.println("Weather icons font not available, using placeholder");
-      display.setFont(weathericons_font);
+      display.setFont(&weathericons_font);
     }
 
     display.setTextSize(4); // Scale factor
