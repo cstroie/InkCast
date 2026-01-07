@@ -306,7 +306,7 @@ void displayWeather() {
     uint16_t iconCode = getIconCodeForWeather(weatherIcon);
 
     // Use the weather icons font
-    display.setFont(&weathericons_font);
+    display.setFont(weathericons_font);
 
     display.setTextSize(4); // Scale factor
     display.setCursor(iconX, iconY + 80); // Adjust for baseline
