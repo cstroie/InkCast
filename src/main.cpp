@@ -127,7 +127,7 @@ String getGeolocation() {
   if (httpCode > 0) {
     if (httpCode == HTTP_CODE_OK) {
       String payload = http.getString();
-      JsonDocument doc(1024);
+      StaticJsonDocument<1024> doc;
       deserializeJson(doc, payload);
 
       if (doc["status"] == "success") {
@@ -211,7 +211,7 @@ void updateWeatherData() {
     return;
   }
 
-  JsonDocument doc(2048);
+  StaticJsonDocument<2048> doc;
   deserializeJson(doc, weatherData);
 
   int weatherCode = doc["daily"]["weather_code"][0];
@@ -227,7 +227,11 @@ void updateWeatherData() {
   }
 
   // Format weather string
+  #ifdef WEATHER_UNITS
   char tempUnit = (WEATHER_UNITS == 0) ? 'F' : 'C';
+  #else
+  char tempUnit = 'C'; // Default to Celsius if not defined
+  #endif
   currentWeather = String(tempMax, 1) + "°" + tempUnit + " / " +
                    String(tempMin, 1) + "°" + tempUnit + "\n" +
                    "Precip: " + String(precipProb) + "%";
