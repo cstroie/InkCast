@@ -310,7 +310,16 @@ void displayWeather() {
 
     display.setTextSize(4); // Scale factor
     display.setCursor(iconX, iconY + 80); // Adjust for baseline
-    display.print((char)iconCode);
+
+    // If icon code is not available, fall back to text
+    if (iconCode == WI_NA) {
+      display.setFont(&FreeMonoBold12pt7b);
+      display.setTextSize(1);
+      display.setCursor(iconX, iconY + 30);
+      display.print("N/A");
+    } else {
+      display.print((char)iconCode);
+    }
 
     // Display location (city) - extract just the city name
     int firstComma = currentLocation.indexOf(',');
