@@ -254,21 +254,43 @@ void displayWeather() {
   do {
     display.fillScreen(GxEPD_WHITE);
 
-    // Display location
+    // Calculate vertical centering for 100x100 icon
+    int iconY = (128 - 100) / 2; // Vertically center the 100px icon
+
+    // Draw weather icon placeholder (100x100)
+    display.drawRect(10, iconY, 100, 100, GxEPD_BLACK);
+    // Add some icon details to make it look better
+    display.drawLine(10, iconY, 110, iconY + 100, GxEPD_BLACK);
+    display.drawLine(10, iconY + 100, 110, iconY, GxEPD_BLACK);
+
+    // Display location (city) - extract just the city name
+    int firstComma = currentLocation.indexOf(',');
+    String city = (firstComma != -1) ? currentLocation.substring(0, firstComma) : currentLocation;
+
+    // Set font for location
     display.setFont(&FreeMonoBold12pt7b);
-    display.setCursor(10, 30);
-    display.print(currentLocation);
+    display.setCursor(120, 30);
+    display.print(city);
 
-    // Display current date
-    display.setCursor(10, 60);
-    display.print("Updated: " + String(day()) + "/" + String(month()) + "/" + String(year()));
+    // Display weather conditions below location
+    display.setCursor(120, 60);
 
-    // Display weather icon (placeholder - would need SVG rendering)
-    display.drawRect(10, 90, 50, 50, GxEPD_BLACK);
+    // Split weather info into lines if needed
+    int newlinePos = currentWeather.indexOf('\n');
+    if (newlinePos != -1) {
+      String firstLine = currentWeather.substring(0, newlinePos);
+      String secondLine = currentWeather.substring(newlinePos + 1);
 
-    // Display weather info
-    display.setCursor(70, 100);
-    display.print(currentWeather);
+      display.print(firstLine);
+      display.setCursor(120, 90);
+      display.print(secondLine);
+    } else {
+      display.print(currentWeather);
+    }
+
+    // Display update timestamp at bottom
+    display.setCursor(120, 110);
+    display.print("Updated: " + String(hour()) + ":" + String(minute()));
   } while (display.nextPage());
 }
 
