@@ -455,69 +455,11 @@ randomSeed(esp_random());
 #if WEATHER_ENABLED
   Serial.println("Initializing weather station...");
 
-  // Check if weather icons font exists in SPIFFS, download if not
-  if (!SPIFFS.exists("/weathericons.ttf")) {
-    Serial.println("Weather icons font not found in SPIFFS, downloading...");
-    HTTPClient http;
-    String fontUrl = "https://cambridgeinternationalschools.com/cms/lib/weather-icons/fonts/weathericons-regular-webfont.ttf";
-
-    http.begin(fontUrl);
-    int httpCode = http.GET();
-
-    if (httpCode == HTTP_CODE_OK) {
-      int contentLength = http.getSize();
-      Serial.print("Downloading font file (");
-      Serial.print(contentLength);
-      Serial.println(" bytes)...");
-
-      File fontFile = SPIFFS.open("/weathericons.ttf", FILE_WRITE);
-      if (!fontFile) {
-        Serial.println("Failed to create font file in SPIFFS");
-      } else {
-        // Stream the font file
-        WiFiClient *stream = http.getStreamPtr();
-        uint8_t buffer[512];
-        size_t bytesReceived;
-        size_t totalBytes = 0;
-
-        while (http.connected() && (contentLength > 0 || contentLength == -1)) {
-          bytesReceived = stream->available();
-          if (bytesReceived) {
-            size_t bytesToRead = min((size_t)512, bytesReceived);
-            size_t bytesRead = stream->readBytes(buffer, bytesToRead);
-
-            if (fontFile.write(buffer, bytesRead) != bytesRead) {
-              Serial.println("Error writing to font file");
-              break;
-            }
-
-            totalBytes += bytesRead;
-            if (contentLength > 0) {
-              contentLength -= bytesRead;
-            }
-
-            // Print progress every 10KB
-            if (totalBytes % 10240 == 0) {
-              Serial.print("Downloaded: ");
-              Serial.print(totalBytes);
-              Serial.println(" bytes");
-            }
-          }
-          delay(1);
-        }
-
-        fontFile.close();
-        Serial.print("Font download complete: ");
-        Serial.print(totalBytes);
-        Serial.println(" bytes");
-      }
-    } else {
-      Serial.print("Failed to download font, HTTP code: ");
-      Serial.println(httpCode);
-    }
-    http.end();
-  } else {
+  // Mount SPIFFS and use the weather icons font from there
+  if (SPIFFS.exists("/weathericons.ttf")) {
     Serial.println("Weather icons font found in SPIFFS");
+  } else {
+    Serial.println("Weather icons font not found in SPIFFS");
   }
 
   updateWeatherData();
