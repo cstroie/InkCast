@@ -187,9 +187,8 @@ void displayWeather(const WeatherData& weather) {
     display.setCursor(10, 60);
     display.print(weather.forecastDate);
     
-    // Display weather icon
-    String weatherMain = doc["weather"][0]["main"].as<String>();
-    String weatherLower = weatherMain;
+    // Display weather icon based on weather description
+    String weatherLower = weather.weatherDescription;
     weatherLower.toLowerCase();
     
     if (weatherLower.indexOf("clear") != -1) {
@@ -204,6 +203,9 @@ void displayWeather(const WeatherData& weather) {
       drawSnowIcon(10, 75);
     } else if (weatherLower.indexOf("mist") != -1 || weatherLower.indexOf("fog") != -1) {
       drawMistIcon(10, 75);
+    } else {
+      // Default to cloud icon for unknown weather
+      drawCloudIcon(10, 75);
     }
     
     // Display weather description
