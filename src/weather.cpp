@@ -20,6 +20,7 @@
 #include "weather.h"
 #include "display.h"
 #include "icons.h"
+#include <time.h>
 
 // Get geolocation using ip-api.com
 bool getGeolocation(float& latitude, float& longitude, String& location, String& country) {

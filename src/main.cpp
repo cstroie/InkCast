@@ -48,7 +48,6 @@
 #include <GxEPD2_7C.h>
 #include <Fonts/FreeMonoBold12pt7b.h>
 #include <TJpg_Decoder.h>
-#include "pbm.h"
 #include "display.h"
 #include "weather.h"
 #include "icons.h"
@@ -76,29 +75,6 @@ void ledOff();
   #define CONFIG_LOADED 0
 #endif
 
-// Include filesystem support
-#if defined(ESP32)
-#include "SPIFFS.h"
-#elif defined(ESP8266)
-#include "FS.h"
-#endif
-
-// Include WiFi support
-#if defined(ESP32)
-#include <WiFi.h>
-#elif defined(ESP8266)
-#include <ESP8266WiFi.h>
-#endif
-
-// Include HTTP client support
-#if defined(ESP32)
-#include <HTTPClient.h>
-#elif defined(ESP8266)
-#include <ESP8266HTTPClient.h>
-#include <WiFiClientSecure.h>
-#endif
-
-#include <stdlib.h>
 
 
 /**

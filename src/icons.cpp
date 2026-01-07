@@ -18,6 +18,7 @@
  */
 
 #include "icons.h"
+#include "display.h"
 
 // Draw a simple sun icon
 void drawSunIcon(int x, int y) {
