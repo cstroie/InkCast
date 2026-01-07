@@ -83,7 +83,7 @@ void ledOff();
 #include <HTTPClient.h>
 #include <WiFiClientSecure.h>
 #include <TimeLib.h>
-#include "weathericons.h"
+#include "weathericons/weathericons.h"
 
 
 // Weather station variables
