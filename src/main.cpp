@@ -83,6 +83,7 @@ void ledOff();
 #include <HTTPClient.h>
 #include <WiFiClientSecure.h>
 #include <TimeLib.h>
+#include "weathericons.h"
 
 
 // Weather station variables
@@ -254,14 +255,17 @@ void displayWeather() {
   do {
     display.fillScreen(GxEPD_WHITE);
 
-    // Calculate vertical centering for 100x100 icon
-    int iconY = (128 - 100) / 2; // Vertically center the 100px icon
+    // Calculate position for weather icon
+    int iconX = 10;
+    int iconY = 10;
+    int iconSize = 100;
 
-    // Draw weather icon placeholder (100x100)
-    display.drawRect(10, iconY, 100, 100, GxEPD_BLACK);
-    // Add some icon details to make it look better
-    display.drawLine(10, iconY, 110, iconY + 100, GxEPD_BLACK);
-    display.drawLine(10, iconY + 100, 110, iconY, GxEPD_BLACK);
+    // Draw weather icon using TTF font
+    uint16_t iconCode = getIconCodeForWeather(weatherIcon);
+    display.setFont(weathericons_font);
+    display.setTextSize(4); // Scale factor
+    display.setCursor(iconX, iconY + 80); // Adjust for baseline
+    display.print((char)iconCode);
 
     // Display location (city) - extract just the city name
     int firstComma = currentLocation.indexOf(',');
