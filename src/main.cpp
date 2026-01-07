@@ -293,7 +293,6 @@ void setup() {
   esp_deep_sleep_start();
 #endif
 #endif
-#endif
 }
 
 
