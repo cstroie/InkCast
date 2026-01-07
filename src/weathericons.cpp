@@ -6,14 +6,8 @@
 
 #include "weathericons.h"
 
-// Simplified font data - in practice this would be generated from TTF
-// This is a placeholder - you would replace with actual font data
-const uint8_t weathericons_font[] = {
-    // Font header would go here
-    // Glyph data would go here
-    // This is just a placeholder - actual implementation would use
-    // font conversion tools to generate the proper data
-};
+// Use FreeMonoBold12pt7b as a placeholder font
+const GFXfont *weathericons_font = &FreeMonoBold12pt7b;
 
 // Icon mapping function
 uint16_t getIconCodeForWeather(const String& iconName) {
