@@ -72,26 +72,11 @@ void ledOff();
 #endif
 
 // Include filesystem support
-#if defined(ESP32)
 #include "SPIFFS.h"
-#elif defined(ESP8266)
-#include "FS.h"
-#endif
-
 // Include WiFi support
-#if defined(ESP32)
 #include <WiFi.h>
-#elif defined(ESP8266)
-#include <ESP8266WiFi.h>
-#endif
-
 // Include HTTP client support
-#if defined(ESP32)
 #include <HTTPClient.h>
-#elif defined(ESP8266)
-#include <ESP8266HTTPClient.h>
-#include <WiFiClientSecure.h>
-#endif
 
 #include <stdlib.h>
 
@@ -129,7 +114,6 @@ void displayHelloWorld() {
   while (display.nextPage());
 }
 
-
 /**
  * Setup function - initializes the system, connects to WiFi, mounts SPIFFS,
  * and displays an image (either from server or SPIFFS)
@@ -137,13 +121,7 @@ void displayHelloWorld() {
 void setup() {
   Serial.begin(115200);
   // Initialize random seed with better entropy
-#if defined(ESP32)
-  randomSeed(esp_random());
-#elif defined(ESP8266)
-  randomSeed(RANDOM_REG32);
-#else
-  randomSeed(analogRead(0));
-#endif
+randomSeed(esp_random());
   
 #if CONFIG_LOADED
   // Connect to WiFi
@@ -173,10 +151,6 @@ void setup() {
     }
     while (display.nextPage());
     display.hibernate();
-#if defined(ESP8266)
-    // Go to deep sleep
-    ESP.deepSleep(0); 
-#endif
     return;
   }
   
@@ -204,10 +178,6 @@ void setup() {
   }
   while (display.nextPage());
   display.hibernate();
-#if defined(ESP8266)
-  // Go to deep sleep
-  ESP.deepSleep(0); 
-#endif
   return;
 #endif
   
@@ -220,20 +190,14 @@ void setup() {
   displayHelloWorld();
 
   // Initialize SPIFFS
-#if defined(ESP32)
   Serial.println("Mounting SPIFFS...");
   if (!SPIFFS.begin(true)) {
-#elif defined(ESP8266)
-  Serial.println("Mounting SPIFFS...");
-  if (!SPIFFS.begin()) {
-#endif
     Serial.println("Failed to mount SPIFFS");
     // Display SPIFFS error with technical font
     display.setRotation(1);
     display.setFullWindow();
     display.firstPage();
-    do
-    {
+    do {
       display.fillScreen(GxEPD_WHITE);
       display.setFont(&FreeMonoBold12pt7b);
       display.setCursor(20, 50);
@@ -241,10 +205,6 @@ void setup() {
     }
     while (display.nextPage());
     display.hibernate();
-#if defined(ESP8266)
-    // Go to deep sleep
-    ESP.deepSleep(0); 
-#endif
     return;
   }
   Serial.println("SPIFFS mounted successfully");
@@ -255,43 +215,32 @@ void setup() {
   ledOff(); // Start with LED off
 #endif
   
-      display.setRotation(1);
-      display.setFullWindow();
-      display.firstPage();
-      do
-      {
-        display.fillScreen(GxEPD_WHITE);
-        display.setFont(&FreeMonoBold12pt7b);
-        display.setCursor(20, 30);
-        display.print("No Image Files Found");
-        display.setCursor(20, 60);
-        display.print("Please add image files");
-        display.setCursor(20, 90);
-        display.print("to SPIFFS or check");
-        display.setCursor(20, 120);
-        display.print("server connectivity");
-      }
-      while (display.nextPage());
-    }
+  display.setRotation(1);
+  display.setFullWindow();
+  display.firstPage();
+  do {
+    display.fillScreen(GxEPD_WHITE);
+    display.setFont(&FreeMonoBold12pt7b);
+    display.setCursor(20, 30);
+    display.print("No Image Files Found");
+    display.setCursor(20, 60);
+    display.print("Please add image files");
+    display.setCursor(20, 90);
+    display.print("to SPIFFS or check");
+    display.setCursor(20, 120);
+    display.print("server connectivity");
+  }
+  while (display.nextPage());
   display.hibernate();
   
-#if defined(ESP8266) || defined(ESP32)
   // Go to deep sleep
 #if CONFIG_LOADED
   if (DEEP_SLEEP_DURATION != -1) {
-#if defined(ESP8266)
-    ESP.deepSleep(DEEP_SLEEP_DURATION); 
-#elif defined(ESP32)
     esp_sleep_enable_timer_wakeup(DEEP_SLEEP_DURATION);
     esp_deep_sleep_start();
-#endif
   }
 #else
-#if defined(ESP8266)
-  ESP.deepSleep(0); 
-#elif defined(ESP32)
   esp_deep_sleep_start();
-#endif
 #endif
 }
 
