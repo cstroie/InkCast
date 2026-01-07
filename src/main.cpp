@@ -459,7 +459,7 @@ randomSeed(esp_random());
   if (!SPIFFS.exists("/weathericons.ttf")) {
     Serial.println("Weather icons font not found in SPIFFS, downloading...");
     HTTPClient http;
-    String fontUrl = "https://github.com/erikflowers/weather-icons/raw/master/font/weathericons-regular-webfont.ttf";
+    String fontUrl = "https://cdnjs.cloudflare.com/ajax/libs/weather-icons/2.0.8/font/weathericons-regular-webfont.ttf";
 
     http.begin(fontUrl);
     int httpCode = http.GET();
