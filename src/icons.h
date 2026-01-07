@@ -17,29 +17,17 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-// Configuration template file
-// Rename this file to config.h and update with your settings
+#ifndef _ICONS_H_
+#define _ICONS_H_
 
-// WiFi credentials
-#define WIFI_SSID "your_wifi_ssid"
-#define WIFI_PASSWORD "your_wifi_password"
+#include "display.h"
 
-// OpenWeatherMap API key
-// Get a free API key from: https://openweathermap.org/api
-#define OPENWEATHER_API_KEY "your_openweather_api_key"
+// Simple weather icon drawing functions
+void drawSunIcon(int x, int y);
+void drawCloudIcon(int x, int y);
+void drawRainIcon(int x, int y);
+void drawSnowIcon(int x, int y);
+void drawThunderIcon(int x, int y);
+void drawMistIcon(int x, int y);
 
-// Deep sleep duration in microseconds
-//  0 = forever, wake up by reset
-// -1 = disable deep sleep
-// Example: 300e6 = 300 seconds = 5 minutes
-#define DEEP_SLEEP_DURATION -1
-
-// Built-in button pin (set to -1 to disable button functionality)
-#define BUTTON_PIN -1
-
-// Built-in LED pin (set to -1 to disable LED functionality)
-#define LED_PIN -1
-
-// Uncomment to enable debug output
-// #define DEBUG_OUTPUT
-
+#endif // _ICONS_H_

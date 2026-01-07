@@ -50,6 +50,8 @@
 #include <TJpg_Decoder.h>
 #include "pbm.h"
 #include "display.h"
+#include "weather.h"
+#include "icons.h"
 
 // Global variables for GIF processing
 static uint16_t gifWidth, gifHeight;
@@ -467,8 +469,7 @@ bool displayRandomImage() {
 }
 
 /**
- * Setup function - initializes the system, connects to WiFi, mounts SPIFFS,
- * and displays an image (either from server or SPIFFS)
+ * Setup function - initializes the system, connects to WiFi, and displays weather
  */
 void setup() {
   Serial.begin(115200);
@@ -552,16 +553,24 @@ void setup() {
   // USE THIS for Waveshare boards with "clever" reset circuit, 2ms reset pulse
   display.init(115200, true, 2, false);
   
-  // Initialize SPIFFS
-#if defined(ESP32)
-  Serial.println("Mounting SPIFFS...");
-  if (!SPIFFS.begin(true)) {
-#elif defined(ESP8266)
-  Serial.println("Mounting SPIFFS...");
-  if (!SPIFFS.begin()) {
+  // Initialize LED pin if configured
+#if CONFIG_LOADED && defined(LED_PIN) && LED_PIN != -1
+  pinMode(LED_PIN, OUTPUT);
+  ledOff(); // Start with LED off
 #endif
-    Serial.println("Failed to mount SPIFFS");
-    // Display SPIFFS error with technical font
+  
+  // Fetch and display weather information
+  Serial.println("Fetching weather information...");
+  WeatherData weather;
+  
+  // Turn on LED while fetching
+  ledOn();
+  
+  if (getWeatherData(weather)) {
+    Serial.println("Weather data fetched successfully, displaying...");
+    displayWeather(weather);
+  } else {
+    Serial.println("Failed to fetch weather data, displaying error...");
     display.setRotation(1);
     display.setFullWindow();
     display.firstPage();
@@ -569,58 +578,20 @@ void setup() {
     {
       display.fillScreen(GxEPD_WHITE);
       display.setFont(&FreeMonoBold12pt7b);
-      display.setCursor(20, 50);
-      display.print("SPIFFS Mount Failed");
+      display.setCursor(20, 30);
+      display.print("Weather Fetch Failed");
+      display.setCursor(20, 60);
+      display.print("Check API key and");
+      display.setCursor(20, 90);
+      display.print("network connectivity");
     }
     while (display.nextPage());
-    display.hibernate();
-#if defined(ESP8266)
-    // Go to deep sleep
-    ESP.deepSleep(0); 
-#endif
-    return;
   }
-  Serial.println("SPIFFS mounted successfully");
   
-  // List all files in SPIFFS
-  Serial.println("SPIFFS content:");
-  listSPIFFSContent();
-  Serial.println("End of SPIFFS content");
-  
-  // Initialize LED pin if configured
-#if CONFIG_LOADED && defined(LED_PIN) && LED_PIN != -1
-  pinMode(LED_PIN, OUTPUT);
-  ledOff(); // Start with LED off
-#endif
-  
-  // First try to fetch and display image from server
-  Serial.println("Attempting to fetch image from server...");
-  if (!fetchAndDisplayImage()) {
-    // If server fetch fails, try to display a random image file from SPIFFS
-    Serial.println("Server fetch failed, attempting to display a random image file from SPIFFS...");
-    if (!displayRandomImage()) {
-      // If no image files found, display instructions
-      Serial.println("No image files found in SPIFFS, displaying instructions...");
-      display.setRotation(1);
-      display.setFullWindow();
-      display.firstPage();
-      do
-      {
-        display.fillScreen(GxEPD_WHITE);
-        display.setFont(&FreeMonoBold12pt7b);
-        display.setCursor(20, 30);
-        display.print("No Image Files Found");
-        display.setCursor(20, 60);
-        display.print("Please add image files");
-        display.setCursor(20, 90);
-        display.print("to SPIFFS or check");
-        display.setCursor(20, 120);
-        display.print("server connectivity");
-      }
-      while (display.nextPage());
-    }
-  }
   display.hibernate();
+  
+  // Turn off LED
+  ledOff();
   
 #if defined(ESP8266) || defined(ESP32)
   // Go to deep sleep
@@ -902,7 +873,7 @@ void loop() {
 #if CONFIG_LOADED && defined(DEEP_SLEEP_DURATION) && DEEP_SLEEP_DURATION == -1 && defined(BUTTON_PIN) && BUTTON_PIN != -1
   // Check if button is pressed (active low)
   if (digitalRead(BUTTON_PIN) == LOW) {
-    Serial.println("Button pressed, fetching new image...");
+    Serial.println("Button pressed, fetching new weather data...");
     
     // Debounce delay
     delay(50);
@@ -912,23 +883,36 @@ void loop() {
       delay(10);
     }
     
-    // Try to fetch and display new image
-    if (!fetchAndDisplayImage()) {
-      // If server fetch fails, try to display a random image file from SPIFFS
-      if (!displayRandomImage()) {
-        // If no image files found, display error
-        display.setRotation(1);
-        display.setFullWindow();
-        display.firstPage();
-        do {
-          display.fillScreen(GxEPD_WHITE);
-          display.setFont(&FreeMonoBold12pt7b);
-          display.setCursor(20, 50);
-          display.print("No Images Available");
-        } while (display.nextPage());
-      }
+    // Fetch and display new weather data
+    WeatherData weather;
+    
+    // Turn on LED while fetching
+    ledOn();
+    
+    if (getWeatherData(weather)) {
+      Serial.println("Weather data fetched successfully, displaying...");
+      displayWeather(weather);
+    } else {
+      Serial.println("Failed to fetch weather data, displaying error...");
+      display.setRotation(1);
+      display.setFullWindow();
+      display.firstPage();
+      do {
+        display.fillScreen(GxEPD_WHITE);
+        display.setFont(&FreeMonoBold12pt7b);
+        display.setCursor(20, 50);
+        display.print("Weather Fetch Failed");
+        display.setCursor(20, 80);
+        display.print("Check API key and");
+        display.setCursor(20, 110);
+        display.print("network connectivity");
+      } while (display.nextPage());
     }
+    
     display.hibernate();
+    
+    // Turn off LED
+    ledOff();
   }
   
   // Small delay to prevent excessive CPU usage
