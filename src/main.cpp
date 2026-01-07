@@ -82,6 +82,7 @@ void ledOff();
 #include <ArduinoJson.h>
 #include <HTTPClient.h>
 #include <WiFiClientSecure.h>
+#include <TimeLib.h>
 
 
 // Weather station variables
@@ -126,13 +127,15 @@ String getGeolocation() {
   if (httpCode > 0) {
     if (httpCode == HTTP_CODE_OK) {
       String payload = http.getString();
-      DynamicJsonDocument doc(1024);
+      JsonDocument doc(1024);
       deserializeJson(doc, payload);
 
       if (doc["status"] == "success") {
-        String location = doc["city"] + ", " + doc["regionName"] + ", " + doc["country"];
-        String lat = doc["lat"];
-        String lon = doc["lon"];
+        String location = String(doc["city"].as<const char*>()) + ", " +
+                         String(doc["regionName"].as<const char*>()) + ", " +
+                         String(doc["country"].as<const char*>());
+        String lat = String(doc["lat"].as<float>());
+        String lon = String(doc["lon"].as<float>());
         http.end();
         return location + "|" + lat + "|" + lon;
       }
@@ -208,7 +211,7 @@ void updateWeatherData() {
     return;
   }
 
-  DynamicJsonDocument doc(2048);
+  JsonDocument doc(2048);
   deserializeJson(doc, weatherData);
 
   int weatherCode = doc["daily"]["weather_code"][0];
