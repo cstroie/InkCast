@@ -24,10 +24,6 @@
 #define WIFI_SSID "your_wifi_ssid"
 #define WIFI_PASSWORD "your_wifi_password"
 
-// OpenWeatherMap API key
-// Get a free API key from: https://openweathermap.org/api
-#define OPENWEATHER_API_KEY "your_openweather_api_key"
-
 // Deep sleep duration in microseconds
 //  0 = forever, wake up by reset
 // -1 = disable deep sleep

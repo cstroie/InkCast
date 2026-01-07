@@ -43,8 +43,7 @@ struct WeatherData {
 };
 
 // Weather API configuration
-#define OPENWEATHER_API_KEY "your_openweather_api_key"  // Replace with your API key
-#define OPENWEATHER_BASE_URL "https://api.openweathermap.org/data/2.5/weather"
+#define METEO_API_URL "https://api.open-meteo.com/v1/forecast"
 #define IP_API_URL "http://ip-api.com/json/"
 
 // Function declarations
@@ -54,5 +53,6 @@ String getWeatherIconCode(const String& weatherMain);
 void displayWeather(const WeatherData& weather);
 String formatTemperature(float temp);
 String formatWindDirection(int degrees);
+String getWeatherDescription(int weatherCode);
 
 #endif // _WEATHER_H_
