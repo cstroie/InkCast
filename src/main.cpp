@@ -79,7 +79,191 @@ void ledOff();
 #include <HTTPClient.h>
 
 #include <stdlib.h>
+#include <ArduinoJson.h>
+#include <HTTPClient.h>
+#include <WiFiClientSecure.h>
 
+
+// Weather station variables
+String currentLocation = "";
+String currentWeather = "";
+String weatherIcon = "";
+unsigned long lastWeatherUpdate = 0;
+
+// Weather icon mapping from WMO codes to Weather Icons font codes
+const char* weatherIcons[] = {
+    "wi-day-sunny",           // 0: Clear sky
+    "wi-day-cloudy",          // 1: Mostly Cloudy
+    "wi-day-cloudy",          // 2: Partly Cloudy
+    "wi-cloudy",              // 3: Overcast
+    "wi-day-haze",            // 5: Haze
+    "wi-day-fog",             // 10: Mist
+    "wi-fog",                 // 45: Fog
+    "wi-fog",                 // 48: Freezing Fog
+    "wi-day-sprinkle",        // 51: Drizzle: Light
+    "wi-day-sprinkle",        // 53: Drizzle: Moderate
+    "wi-day-rain",            // 55: Drizzle: Heavy
+    "wi-day-sleet",           // 56: Freezing Drizzle: Light
+    "wi-day-sleet",           // 57: Freezing Drizzle: Moderate
+    "wi-day-rain",            // 61: Rain: Slight
+    "wi-day-rain",            // 63: Rain: Moderate
+    "wi-day-rain",            // 65: Rain: Heavy
+    "wi-day-sleet",           // 66: Freezing Rain: Light
+    "wi-day-sleet",           // 67: Freezing Rain: Dense
+    "wi-day-snow"             // 71: Snow: Light
+};
+
+/**
+ * Get geolocation data from ip-api.com
+ */
+String getGeolocation() {
+  HTTPClient http;
+  String url = "http://ip-api.com/json/?fields=status,message,country,countryCode,region,regionName,city,zip,lat,lon,timezone";
+
+  http.begin(url);
+  int httpCode = http.GET();
+
+  if (httpCode > 0) {
+    if (httpCode == HTTP_CODE_OK) {
+      String payload = http.getString();
+      DynamicJsonDocument doc(1024);
+      deserializeJson(doc, payload);
+
+      if (doc["status"] == "success") {
+        String location = doc["city"] + ", " + doc["regionName"] + ", " + doc["country"];
+        String lat = doc["lat"];
+        String lon = doc["lon"];
+        http.end();
+        return location + "|" + lat + "|" + lon;
+      }
+    }
+  } else {
+    Serial.printf("HTTP error: %s\n", http.errorToString(httpCode).c_str());
+  }
+
+  http.end();
+  return "";
+}
+
+/**
+ * Get weather data from Open-Meteo API
+ */
+String getWeatherData(float lat, float lon) {
+  HTTPClient http;
+  String url = "https://api.open-meteo.com/v1/forecast";
+
+  String params = "latitude=" + String(lat, 6) + "&longitude=" + String(lon, 6) +
+                  "&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_hours,precipitation_probability_max" +
+                  "&timezone=auto&forecast_days=1";
+
+#if WEATHER_UNITS == 0
+  params += "&temperature_unit=fahrenheit&wind_speed_unit=mph&precipitation_unit=inch";
+#else
+  params += "&temperature_unit=celsius&wind_speed_unit=kmh&precipitation_unit=mm";
+#endif
+
+  http.begin(url);
+  http.addHeader("Content-Type", "application/x-www-form-urlencoded");
+  int httpCode = http.POST(params);
+
+  if (httpCode > 0) {
+    if (httpCode == HTTP_CODE_OK) {
+      String payload = http.getString();
+      http.end();
+      return payload;
+    }
+  } else {
+    Serial.printf("HTTP error: %s\n", http.errorToString(httpCode).c_str());
+  }
+
+  http.end();
+  return "";
+}
+
+/**
+ * Parse weather data and update display variables
+ */
+void updateWeatherData() {
+  String geoData = getGeolocation();
+  if (geoData == "") {
+    Serial.println("Failed to get geolocation data");
+    return;
+  }
+
+  int firstPipe = geoData.indexOf('|');
+  int secondPipe = geoData.indexOf('|', firstPipe + 1);
+
+  if (firstPipe == -1 || secondPipe == -1) {
+    Serial.println("Invalid geolocation data format");
+    return;
+  }
+
+  currentLocation = geoData.substring(0, firstPipe);
+  float lat = geoData.substring(firstPipe + 1, secondPipe).toFloat();
+  float lon = geoData.substring(secondPipe + 1).toFloat();
+
+  String weatherData = getWeatherData(lat, lon);
+  if (weatherData == "") {
+    Serial.println("Failed to get weather data");
+    return;
+  }
+
+  DynamicJsonDocument doc(2048);
+  deserializeJson(doc, weatherData);
+
+  int weatherCode = doc["daily"]["weather_code"][0];
+  float tempMax = doc["daily"]["temperature_2m_max"][0];
+  float tempMin = doc["daily"]["temperature_2m_min"][0];
+  float precipProb = doc["daily"]["precipitation_probability_max"][0];
+
+  // Map weather code to icon
+  if (weatherCode < sizeof(weatherIcons)/sizeof(weatherIcons[0])) {
+    weatherIcon = weatherIcons[weatherCode];
+  } else {
+    weatherIcon = "wi-na"; // Not available
+  }
+
+  // Format weather string
+  char tempUnit = (WEATHER_UNITS == 0) ? 'F' : 'C';
+  currentWeather = String(tempMax, 1) + "°" + tempUnit + " / " +
+                   String(tempMin, 1) + "°" + tempUnit + "\n" +
+                   "Precip: " + String(precipProb) + "%";
+
+  Serial.println("Weather data updated");
+  Serial.println("Location: " + currentLocation);
+  Serial.println("Weather: " + currentWeather);
+  Serial.println("Icon: " + weatherIcon);
+
+  lastWeatherUpdate = millis();
+}
+
+/**
+ * Display weather information on the e-paper screen
+ */
+void displayWeather() {
+  display.setRotation(1);
+  display.setFullWindow();
+  display.firstPage();
+  do {
+    display.fillScreen(GxEPD_WHITE);
+
+    // Display location
+    display.setFont(&FreeMonoBold12pt7b);
+    display.setCursor(10, 30);
+    display.print(currentLocation);
+
+    // Display current date
+    display.setCursor(10, 60);
+    display.print("Updated: " + String(day()) + "/" + String(month()) + "/" + String(year()));
+
+    // Display weather icon (placeholder - would need SVG rendering)
+    display.drawRect(10, 90, 50, 50, GxEPD_BLACK);
+
+    // Display weather info
+    display.setCursor(70, 100);
+    display.print(currentWeather);
+  } while (display.nextPage());
+}
 
 /**
  * Clear the entire e-paper display
@@ -189,6 +373,15 @@ randomSeed(esp_random());
   // Display "Hello World" on startup
   displayHelloWorld();
 
+  // Initialize weather station if enabled
+#if WEATHER_ENABLED
+  Serial.println("Initializing weather station...");
+  updateWeatherData();
+  if (currentLocation != "") {
+    displayWeather();
+  }
+#endif
+
   // Initialize SPIFFS
   Serial.println("Mounting SPIFFS...");
   if (!SPIFFS.begin(true)) {
@@ -295,5 +488,16 @@ void loop() {
   
   // Small delay to prevent excessive CPU usage
   delay(100);
+#endif
+
+#if WEATHER_ENABLED
+  // Update weather data periodically
+  unsigned long currentTime = millis();
+  if (currentTime - lastWeatherUpdate > (WEATHER_UPDATE_INTERVAL * 60 * 1000)) {
+    updateWeatherData();
+    if (currentLocation != "") {
+      displayWeather();
+    }
+  }
 #endif
 }

@@ -36,6 +36,12 @@
 // Built-in LED pin (set to -1 to disable LED functionality)
 #define LED_PIN -1
 
+// Weather station configuration
+#define WEATHER_ENABLED 1
+#define WEATHER_UNITS 1 // 0 = imperial, 1 = metric
+#define WEATHER_FORECAST_DAYS 1
+#define WEATHER_UPDATE_INTERVAL 30 // minutes
+
 // Server URL for random pictures
 #define SERVER_URL "https://eridu.eu.org/test.pbm"
 
