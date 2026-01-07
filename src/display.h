@@ -2,7 +2,6 @@
 #include <GxEPD2_3C.h>
 #include <GxEPD2_4C.h>
 #include <GxEPD2_7C.h>
-#include <GxEPD2_290.h>
 #include <GxEPD2_290_T94.h>
 #include <GxEPD2_290_C90c.h>
 
