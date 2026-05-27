@@ -47,6 +47,8 @@
 #include <GxEPD2_4C.h>
 #include <GxEPD2_7C.h>
 #include <Fonts/FreeMonoBold12pt7b.h>
+#include <Fonts/FreeSans9pt7b.h>
+#include <Fonts/FreeSansBold18pt7b.h>
 #include "display.h"
 
 /**
@@ -88,9 +90,21 @@ void ledOff();
 
 // Weather station variables
 String currentLocation = "";
-String currentWeather = "";
 uint16_t currentIconCode = WI_NA;
+int   currentWeatherCode = 0;
+float currentTempMax    = 0.0f;
+float currentTempMin    = 0.0f;
+float currentPrecipProb = 0.0f;
+char  currentTempUnit   = 'C';
 unsigned long lastWeatherUpdate = 0;
+
+bool isSevereWeather(int code) {
+  return (code == 56 || code == 57 ||
+          code == 66 || code == 67 ||
+          code == 75 || code == 82 ||
+          code == 86 ||
+          code == 95 || code == 96 || code == 99);
+}
 
 /**
  * Get geolocation data from ip-api.com
@@ -232,26 +246,23 @@ void updateWeatherData() {
   JsonDocument doc;
   deserializeJson(doc, weatherData);
 
-  int weatherCode = doc["daily"]["weather_code"][0];
-  float tempMax = doc["daily"]["temperature_2m_max"][0];
-  float tempMin = doc["daily"]["temperature_2m_min"][0];
-  float precipProb = doc["daily"]["precipitation_probability_max"][0];
-
-  currentIconCode = getIconCode(weatherCode);
+  currentWeatherCode = doc["daily"]["weather_code"][0];
+  currentTempMax     = doc["daily"]["temperature_2m_max"][0];
+  currentTempMin     = doc["daily"]["temperature_2m_min"][0];
+  currentPrecipProb  = doc["daily"]["precipitation_probability_max"][0];
+  currentIconCode    = getIconCode(currentWeatherCode);
 
   #ifdef WEATHER_UNITS
-  char tempUnit = (WEATHER_UNITS == 0) ? 'F' : 'C';
+  currentTempUnit = (WEATHER_UNITS == 0) ? 'F' : 'C';
   #else
-  char tempUnit = 'C';
+  currentTempUnit = 'C';
   #endif
-  currentWeather = String(tempMax, 1) + "°" + tempUnit + " / " +
-                   String(tempMin, 1) + "°" + tempUnit + "\n" +
-                   "Precip: " + String(precipProb, 0) + "%";
 
   Serial.println("Weather data updated");
   Serial.println("Location: " + currentLocation);
-  Serial.println("Weather: " + currentWeather);
-  Serial.printf("Icon code: 0x%04X\n", currentIconCode);
+  Serial.printf("WMO code: %d  Icon: 0x%04X\n", currentWeatherCode, currentIconCode);
+  Serial.printf("Temp: %.1f / %.1f %c  Precip: %.0f%%\n",
+                currentTempMax, currentTempMin, currentTempUnit, currentPrecipProb);
 
   lastWeatherUpdate = millis();
 }
@@ -260,44 +271,76 @@ void updateWeatherData() {
  * Display weather information on the e-paper screen
  */
 void displayWeather() {
+  uint16_t iconColor = isSevereWeather(currentWeatherCode) ? GxEPD_RED : GxEPD_BLACK;
+  bool hot = (currentTempUnit == 'C') ? (currentTempMax >= 35.0f) : (currentTempMax >= 95.0f);
+  uint16_t tempColor = hot ? GxEPD_RED : GxEPD_BLACK;
+
   display.setRotation(1);
   display.setFullWindow();
   display.firstPage();
   do {
     display.fillScreen(GxEPD_WHITE);
 
+    // --- Header: city left, time right ---
+    display.setFont(&FreeSans9pt7b);
     display.setTextColor(GxEPD_BLACK);
 
-    // Weather icon (left column, ~55px wide at 32pt)
-    // drawChar() accepts uint16_t codepoints, needed for private-use area glyphs
-    display.setFont(WI_FONT);
-    display.drawChar(2, 100, currentIconCode, GxEPD_BLACK, GxEPD_WHITE, 1);
-
-    // Text (right column)
-    display.setFont(&FreeMonoBold12pt7b);
-
-    // City name
     int firstComma = currentLocation.indexOf(',');
     String city = (firstComma != -1) ? currentLocation.substring(0, firstComma) : currentLocation;
-    display.setCursor(70, 25);
+    display.setCursor(2, 18);
     display.print(city);
 
-    // Temperature
-    int newlinePos = currentWeather.indexOf('\n');
-    display.setCursor(70, 55);
-    display.print(newlinePos != -1 ? currentWeather.substring(0, newlinePos) : currentWeather);
-
-    // Precipitation
-    if (newlinePos != -1) {
-      display.setCursor(70, 80);
-      display.print(currentWeather.substring(newlinePos + 1));
-    }
-
-    // Timestamp
     char ts[6];
     snprintf(ts, sizeof(ts), "%02d:%02d", hour(), minute());
-    display.setCursor(70, 110);
+    int16_t tx, ty; uint16_t tw, th;
+    display.getTextBounds(ts, 0, 0, &tx, &ty, &tw, &th);
+    display.setCursor(display.width() - (int16_t)tw - 2, 18);
     display.print(ts);
+
+    // Red divider below header
+    display.drawFastHLine(0, 23, display.width(), GxEPD_RED);
+
+    // --- Middle: icon (left) + data (right) ---
+    // Icon, baseline y=100
+    display.setFont(WI_FONT);
+    display.drawChar(2, 100, currentIconCode, iconColor, GxEPD_WHITE, 1);
+
+    // Max temperature (large)
+    display.setFont(&FreeSansBold18pt7b);
+    char tempMaxStr[10];
+    snprintf(tempMaxStr, sizeof(tempMaxStr), "%.1f%c", currentTempMax, currentTempUnit);
+    display.setTextColor(tempColor);
+    display.setCursor(70, 64);
+    display.print(tempMaxStr);
+
+    // Min temperature
+    display.setFont(&FreeSans9pt7b);
+    char tempMinStr[12];
+    snprintf(tempMinStr, sizeof(tempMinStr), "min %.1f%c", currentTempMin, currentTempUnit);
+    display.setTextColor(GxEPD_BLACK);
+    display.setCursor(70, 82);
+    display.print(tempMinStr);
+
+    // Precipitation
+    char precipStr[14];
+    snprintf(precipStr, sizeof(precipStr), "Precip: %.0f%%", currentPrecipProb);
+    display.setCursor(70, 98);
+    display.print(precipStr);
+
+    // Red divider above footer
+    display.drawFastHLine(0, 105, display.width(), GxEPD_RED);
+
+    // --- Footer: date ---
+    static const char* dayNames[] = {"Sun","Mon","Tue","Wed","Thu","Fri","Sat"};
+    static const char* monNames[] = {"Jan","Feb","Mar","Apr","May","Jun",
+                                     "Jul","Aug","Sep","Oct","Nov","Dec"};
+    char dateStr[20];
+    snprintf(dateStr, sizeof(dateStr), "%s %d %s %d",
+             dayNames[weekday() - 1], day(), monNames[month() - 1], year());
+    display.setFont(&FreeSans9pt7b);
+    display.setTextColor(GxEPD_BLACK);
+    display.setCursor(2, 122);
+    display.print(dateStr);
   } while (display.nextPage());
 }
 
