@@ -72,7 +72,9 @@ static float    currentTempMax     = 0.0f;
 static float    currentTempMin     = 0.0f;
 static float    currentPrecipProb  = 0.0f;
 static char     currentTempUnit    = 'C';
-static char     currentForecastDate[12] = "";  // "DD.MM.YY" from daily.time[0]
+static char currentForecastDate[12] = "";  // "DD.MM.YY" from current.time
+static int  currentReportHour       = -1;  // local hour from current.time
+static int  currentReportMin        = -1;  // local minute from current.time
 static unsigned long lastWeatherUpdate = 0;
 
 // ---------------------------------------------------------------------------
@@ -204,8 +206,7 @@ void displayWeather() {
   int umbrellas = (int)((currentPrecipProb + 19.0f) / 20.0f);
   if (umbrellas > 5) umbrellas = 5;
 
-  struct tm timeinfo;
-  bool timeOk = getLocalTime(&timeinfo);
+  bool timeOk = (currentReportHour >= 0);
 
   display.setRotation(1);
   display.setFullWindow();
@@ -282,7 +283,7 @@ void displayWeather() {
       char suffix[48];
       if (hasDate && timeOk)
         snprintf(suffix, sizeof(suffix), "%s | %s | %02d:%02d",
-                 ip.c_str(), currentForecastDate, timeinfo.tm_hour, timeinfo.tm_min);
+                 ip.c_str(), currentForecastDate, currentReportHour, currentReportMin);
       else if (hasDate)
         snprintf(suffix, sizeof(suffix), "%s | %s", ip.c_str(), currentForecastDate);
       else
@@ -418,14 +419,17 @@ bool fetchWeatherData() {
   currentIconCode    = getIconCode(currentWeatherCode);
   currentTempUnit    = (config.tempUnits == 0) ? 'F' : 'C';
 
-  // Parse "YYYY-MM-DD" → "DD.MM.YY"
-  const char* dateStr = doc["daily"]["time"][0];
-  if (dateStr && strlen(dateStr) == 10)
+  // Parse current.time "YYYY-MM-DDTHH:MM" → date "DD.MM.YY" + hour/minute
+  const char* reportTime = doc["current"]["time"];
+  if (reportTime && strlen(reportTime) == 16) {
     snprintf(currentForecastDate, sizeof(currentForecastDate),
              "%c%c.%c%c.%c%c",
-             dateStr[8], dateStr[9],   // DD
-             dateStr[5], dateStr[6],   // MM
-             dateStr[2], dateStr[3]);  // YY
+             reportTime[8],  reportTime[9],   // DD
+             reportTime[5],  reportTime[6],   // MM
+             reportTime[2],  reportTime[3]);  // YY
+    currentReportHour = (reportTime[11] - '0') * 10 + (reportTime[12] - '0');
+    currentReportMin  = (reportTime[14] - '0') * 10 + (reportTime[15] - '0');
+  }
 
   Serial.printf("WMO %d  now %.1f%c  %.1f...%.1f%c  precip %.0f%%\n",
                 currentWeatherCode, currentTemp, currentTempUnit,
