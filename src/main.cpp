@@ -193,49 +193,72 @@ void displayWeather() {
     display.setCursor(display.width() - (int16_t)cw - 2, 16);
     display.print(city);
 
-    // Line 1 — current temperature, large, red when hot
+    // Line 1 — current temperature, large, red when hot, centred in right column
     display.setFont(&FreeSansBold24pt7b);
     display.setTextColor(currColor);
     char currStr[10];
     snprintf(currStr, sizeof(currStr), "%.1f%c", currentTemp, currentTempUnit);
-    display.setCursor(COL, 62);
+    {
+      int16_t tx, ty; uint16_t tw, th;
+      display.getTextBounds(currStr, 0, 0, &tx, &ty, &tw, &th);
+      display.setCursor(COL + (display.width() - COL - (int16_t)tw) / 2, 62);
+    }
     display.print(currStr);
 
-    // Line 2 — min–max range
+    // Line 2 — min–max range, centred in right column
     display.setFont(&FreeSans12pt7b);
     display.setTextColor(GxEPD_BLACK);
     char rangeStr[16];
     snprintf(rangeStr, sizeof(rangeStr), "%.0f ... %.0f%c", currentTempMin, currentTempMax, currentTempUnit);
-    display.setCursor(COL, 88);
+    {
+      int16_t tx, ty; uint16_t tw, th;
+      display.getTextBounds(rangeStr, 0, 0, &tx, &ty, &tw, &th);
+      display.setCursor(COL + (display.width() - COL - (int16_t)tw) / 2, 88);
+    }
     display.print(rangeStr);
 
-    // Line 3 — umbrellas (0–5) for precipitation probability
+    // Line 3 — umbrellas (0–5), centred in right column
     display.setFont(WI_SMALL_FONT);
     display.setTextColor(GxEPD_BLACK);
-    {
-      int x = COL;
+    if (umbrellas > 0) {
+      int totalW = umbrellas * 28 - 2;  // last glyph needs no trailing gap
+      int x = COL + (display.width() - COL - totalW) / 2;
       for (int i = 0; i < umbrellas; i++) {
         display.drawChar(x, 112, WI_UMBRELLA, GxEPD_BLACK, GxEPD_WHITE, 1);
-        x += 28;  // advance + 2px gap
+        x += 28;
       }
     }
 
     // Footer — SSID | IP | date | time, built-in 6×8 font, centred
     {
-      String ssid = WiFi.SSID();
-      if (ssid.length() > 10) ssid = ssid.substring(0, 10);
+      // Build fixed suffix (IP + optional date + optional time) first,
+      // then prepend as much of the SSID as the remaining pixels allow.
+      // Built-in font: 6px wide + 1px spacing = 7px per char.
       String ip = WiFi.localIP().toString();
-      char footer[64];
       bool hasDate = currentForecastDate[0] != '\0';
+      char suffix[48];
       if (hasDate && timeOk)
-        snprintf(footer, sizeof(footer), "%s | %s | %s | %02d:%02d",
-                 ssid.c_str(), ip.c_str(), currentForecastDate,
-                 timeinfo.tm_hour, timeinfo.tm_min);
+        snprintf(suffix, sizeof(suffix), "%s | %s | %02d:%02d",
+                 ip.c_str(), currentForecastDate, timeinfo.tm_hour, timeinfo.tm_min);
       else if (hasDate)
-        snprintf(footer, sizeof(footer), "%s | %s | %s",
-                 ssid.c_str(), ip.c_str(), currentForecastDate);
+        snprintf(suffix, sizeof(suffix), "%s | %s", ip.c_str(), currentForecastDate);
       else
-        snprintf(footer, sizeof(footer), "%s | %s", ssid.c_str(), ip.c_str());
+        snprintf(suffix, sizeof(suffix), "%s", ip.c_str());
+
+      const int charW   = 6;
+      int maxChars      = display.width() / charW;
+      int suffixChars   = strlen(suffix);
+      int ssidMax       = maxChars - suffixChars - 3;  // 3 for " | "
+
+      char footer[64];
+      if (ssidMax > 0) {
+        String ssid = WiFi.SSID();
+        if ((int)ssid.length() > ssidMax) ssid = ssid.substring(0, ssidMax);
+        snprintf(footer, sizeof(footer), "%s | %s", ssid.c_str(), suffix);
+      } else {
+        snprintf(footer, sizeof(footer), "%s", suffix);
+      }
+
       display.setFont(NULL);
       display.setTextSize(1);
       int16_t fx, fy; uint16_t fw, fh;

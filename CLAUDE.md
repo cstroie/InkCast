@@ -37,7 +37,7 @@ on a GDEM029C90 128×296 panel via GxEPD2. No API keys required for either servi
 - **Config portal modes**:
   - `runConfigPortal()` — blocks forever, WiFi AP + captive DNS, used at first boot or when button held
   - `startConfigServer()` / `handleConfigServer()` — non-blocking WebServer on station IP, started only when `deepSleepMins == -1`, polled at the top of every `loop()` iteration
-- **Font rendering**: weather icon uses `display.drawChar()` with a `uint16_t` codepoint — NOT `display.print()`. The font is `weathericons48pt8b` (note the `8b` suffix, not `7b`).
+- **Font rendering**: weather icon uses `display.drawChar()` with a `uint16_t` codepoint — NOT `display.print()`. The font is `weathericons44pt8b` (note the `8b` suffix, not `7b`).
 - **Color use**: `GxEPD_RED` for severe weather icon (WMO codes 56,57,66,67,75,82,86,95,96,99) and for current temp ≥ 30 °C / 86 °F. Min–max range stays black.
 - **Fetch retry**: on failure, waits a random 1–5 min then doubles each retry, capped at 30 min. Display is not updated until data arrives (old e-paper content preserved).
 - **Deep sleep**: `esp_sleep_enable_timer_wakeup()` in microseconds. `-1` means stay awake (loop runs), `0` means no timer (sleeps but never auto-wakes).
@@ -45,14 +45,16 @@ on a GDEM029C90 128×296 panel via GxEPD2. No API keys required for either servi
 ## Display layout (296×128, rotation=1)
 
 ```
-cx=68 cy=60  Weather icon, 44pt, centred in left column (COL=136, 2px margin)
-x=right-2 y=16   City name, FreeSansBold9pt, right-aligned
-COL=136  y=62    Current temperature, FreeSansBold24pt (red if >= 30C/86F)
-COL=136  y=88    Min ... Max range, FreeSans12pt
-COL=136  y=112   Umbrella icons 0–5, WeatherIcons12pt (1 per 20pp)
-centered y=120   Footer: SSID | IP | forecast date | NTP time, 6×8 built-in font
+cx=68 cy=60           Weather icon, 44pt, centred in left column (COL=136, 2px margin each side)
+x=right-2 y=16        City name, FreeSansBold9pt, right-aligned
+centred [COL..295] y=62   Current temperature, FreeSansBold24pt (red if >= 30C/86F)
+centred [COL..295] y=88   Min ... Max range, FreeSans12pt
+centred [COL..295] y=112  Umbrella icons 0–5, WeatherIcons12pt (1 per 20%)
+centred y=120         Footer: SSID | IP | forecast date | NTP time, 6×8 built-in font
 ```
 
+Footer layout: suffix `IP | date | time` is built first; SSID is prepended trimmed to fit within
+296 / 6 = 49 chars total (built-in font is 6 px per character including spacing).
 Footer date comes from `daily.time[0]` in the Open-Meteo response (format `YYYY-MM-DD`, stored as `DD.MM.YY`). Time comes from NTP via `getLocalTime()`.
 Current temperature comes from `current.temperature_2m` in the Open-Meteo response.
 

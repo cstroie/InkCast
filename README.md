@@ -7,8 +7,10 @@ A self-contained weather display for a 2.9" tri-color e-paper panel, running on 
 - Automatic geolocation via [ip-api.com](http://ip-api.com) (no API key required)
 - Daily weather forecast via [Open-Meteo](https://open-meteo.com) (no API key required)
 - NTP time sync with automatic UTC offset from geolocation
-- Weather icons from the [Weather Icons](https://erikflowers.github.io/weather-icons/) font, rendered at 48pt
-- Red color used for severe weather icon and high temperatures (≥ 30 °C / 86 °F)
+- Weather icons from the [Weather Icons](https://erikflowers.github.io/weather-icons/) font, rendered at 44pt
+- Current temperature (large) and min/max predicted range shown in the right column
+- Precipitation probability shown as 0–5 umbrella icons
+- Red color used for severe weather icon and current temperature when ≥ 30 °C / 86 °F
 - Browser-based configuration portal (WiFi, units, intervals, pins) stored in NVS — survives firmware updates
 - Active-low LED status signalling
 - Optional deep sleep between refreshes for battery-powered use
@@ -30,18 +32,20 @@ A self-contained weather display for a 2.9" tri-color e-paper panel, running on 
 
 ```
 +---------------------------296px--------------------------+
-|  [weather  ]                                  City Name  |
-|  [ icon    ]                                             |
-|  [ 48pt    ]   30.5°C         <- max temp, 24pt bold     |
-|               min 17.0°C      <- min temp, 12pt          |
-|               rain 0%         <- precipitation, 12pt     |
-|   SSID | 192.168.x.x | 27.05.26 | 14:35  <- footer 6x8   |
+|  [weather  ]                              City Name      |
+|  [ icon    ]         30.5C     <- current temp, 24pt bold|
+|  [ 44pt    ]      17 ... 30C   <- min...max range, 12pt  |
+|                   ☂ ☂ ☂        <- precip umbrellas, 12pt |
+|   SSID | 192.168.x.x | 27.05.26 | 14:35  <- footer 6×8  |
 +----------------------------------------------------------+
 ```
 
-- Max temperature shown in **red** when ≥ 30 °C (or 86 °F)
+- Left column (0–135 px): weather icon centred at (68, 60)
+- Right column (136–295 px): city name, current temp, min–max range, and umbrellas all centred within the column
+- Current temperature shown in **red** when ≥ 30 °C (or 86 °F)
 - Weather icon shown in **red** for severe conditions (freezing rain, heavy snow, thunderstorm)
-- Footer spans full width, centered; date is taken from the forecast (`daily.time[0]`), time from NTP
+- Precipitation probability mapped to 0–5 umbrella glyphs (one umbrella per 20 %)
+- Footer spans full width, centered; SSID is trimmed to fit; date from `daily.time[0]`, time from NTP
 
 ## LED Signals
 
