@@ -1,0 +1,5 @@
+.aider*
+.pio*
+.vscode*
+.claude*
+src/config.h
