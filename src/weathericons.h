@@ -11,7 +11,7 @@
 #define WEATHERICONS_H
 
 #include <Arduino.h>
-#include "WeatherIcons32pt7b.h"
+#include <Adafruit_GFX.h>
 #include "WeatherIcons48pt7b.h"
 
 #define WI_FONT (&weathericons48pt8b)
