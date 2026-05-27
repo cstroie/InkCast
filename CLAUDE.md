@@ -23,8 +23,9 @@ on a GDEM029C90 128×296 panel via GxEPD2. No API keys required for either servi
 | `src/config_manager.h/.cpp` | NVS-backed runtime config via ESP32 Preferences (`namespace "epaper"`) |
 | `src/portal.h/.cpp` | Two-mode config portal: blocking AP-mode (first boot) + non-blocking STA-mode (always-on) |
 | `src/weathericons.h/.cpp` | WMO code → Weather Icons glyph lookup table |
-| `src/WeatherIcons32pt7b.h` | Weather Icons font at 32pt (generated from `data/weathericons.ttf`) |
-| `src/WeatherIcons48pt7b.h` | Weather Icons font at 48pt — this is the one used at runtime (`WI_FONT`) |
+| `src/WeatherIcons48pt7b.h` | Weather Icons font at 48pt — main weather icon (`WI_FONT`) |
+| `src/WeatherIcons12pt7b.h` | Weather Icons font at 12pt, umbrella glyph only (`WI_SMALL_FONT`) |
+| `data/weathericons.ttf` | Source font for generating bitmap headers via fontconvert |
 
 `src/config.h` and `src/config.tpl` are **obsolete** — replaced by NVS + portal. Do not use them.
 
@@ -37,7 +38,8 @@ on a GDEM029C90 128×296 panel via GxEPD2. No API keys required for either servi
   - `runConfigPortal()` — blocks forever, WiFi AP + captive DNS, used at first boot or when button held
   - `startConfigServer()` / `handleConfigServer()` — non-blocking WebServer on station IP, started only when `deepSleepMins == -1`, polled at the top of every `loop()` iteration
 - **Font rendering**: weather icon uses `display.drawChar()` with a `uint16_t` codepoint — NOT `display.print()`. The font is `weathericons48pt8b` (note the `8b` suffix, not `7b`).
-- **Color use**: `GxEPD_RED` for severe weather icon (WMO codes 56,57,66,67,75,82,86,95,96,99) and for max temp ≥ 30 °C / 86 °F.
+- **Color use**: `GxEPD_RED` for severe weather icon (WMO codes 56,57,66,67,75,82,86,95,96,99) and for current temp ≥ 30 °C / 86 °F. Min–max range stays black.
+- **Fetch retry**: on failure, waits a random 1–5 min then doubles each retry, capped at 30 min. Display is not updated until data arrives (old e-paper content preserved).
 - **Deep sleep**: `esp_sleep_enable_timer_wakeup()` in microseconds. `-1` means stay awake (loop runs), `0` means no timer (sleeps but never auto-wakes).
 
 ## Display layout (296×128, rotation=1)
@@ -45,13 +47,14 @@ on a GDEM029C90 128×296 panel via GxEPD2. No API keys required for either servi
 ```
 x=12  y=100   Weather icon, 48pt, left column
 x=right-2 y=16   City name, FreeSansBold9pt, right-aligned
-COL=142  y=58    Max temperature, FreeSansBold24pt
-COL=142  y=84    Min temperature, FreeSans12pt
-COL=142  y=108   Precipitation probability, FreeSans12pt
+COL=142  y=54    Current temperature, FreeSansBold24pt (red if >= 30C/86F)
+COL=142  y=78    Min – Max range, FreeSans12pt
+COL=142  y=104   Umbrella icons 0–5, WeatherIcons12pt (1 per 20pp)
 centered y=120   Footer: SSID | IP | forecast date | NTP time, 6×8 built-in font
 ```
 
 Footer date comes from `daily.time[0]` in the Open-Meteo response (format `YYYY-MM-DD`, stored as `DD.MM.YY`). Time comes from NTP via `getLocalTime()`.
+Current temperature comes from `current.temperature_2m` in the Open-Meteo response.
 
 ## LED blink conventions
 
@@ -63,6 +66,28 @@ Footer date comes from `daily.time[0]` in the Open-Meteo response (format `YYYY-
 | Network fetch in progress | Steady on |
 | Success | 2 short flashes (80/80ms) |
 | Error | 3 long flashes (300/200ms) |
+
+## Generating font headers
+
+Font headers are generated from `data/weathericons.ttf` using the `fontconvert` tool
+bundled with the Adafruit GFX Library. Build it once, then run it for any size/range needed.
+
+```bash
+# Build fontconvert (requires libfreetype-dev)
+cd .pio/libdeps/esp32c3/Adafruit\ GFX\ Library/fontconvert
+make
+
+# Generate a font header — pass codepoints as DECIMAL (atoi can't parse 0xHHHH)
+# fontconvert <ttf> <size> <first_decimal> <last_decimal> > src/Output.h
+# Example: umbrella glyph (0xF084 = 61572) at 12pt
+./fontconvert ../../../../../data/weathericons.ttf 12 61572 61572 > ../../../../../src/WeatherIcons12pt7b.h
+
+# Full icon set at 48pt (0xF001=61441 to 0xF0B6=61622)
+./fontconvert ../../../../../data/weathericons.ttf 48 61441 61622 > ../../../../../src/WeatherIcons48pt7b.h
+```
+
+The output filename suffix is `8b` when `last > 127` (all Weather Icons codepoints qualify).
+Always add the GPL header and `#pragma once` manually after generation.
 
 ## Build
 
