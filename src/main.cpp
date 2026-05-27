@@ -433,6 +433,7 @@ void setup() {
 
   // Connect to WiFi
   Serial.printf("Connecting to %s", config.wifiSsid);
+  WiFi.setHostname(apName);
   WiFi.begin(config.wifiSsid, config.wifiPassword);
   int tries = 0;
   while (WiFi.status() != WL_CONNECTED && tries++ < 20) {
