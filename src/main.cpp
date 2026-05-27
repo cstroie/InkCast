@@ -181,12 +181,14 @@ bool fetchWeatherData() {
     return false;
   }
 
-  JsonDocument doc;
-  DeserializationError err = deserializeJson(doc, http.getStream());
+  // getString() needed for HTTPS — getStream() on TLS is unreliable on ESP32
+  String payload = http.getString();
   http.end();
 
+  JsonDocument doc;
+  DeserializationError err = deserializeJson(doc, payload);
   if (err) {
-    Serial.println("Weather JSON parse error");
+    Serial.printf("Weather JSON parse error: %s\n", err.c_str());
     return false;
   }
 
