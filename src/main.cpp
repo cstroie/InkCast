@@ -412,17 +412,18 @@ randomSeed(esp_random());
 #if WEATHER_ENABLED
   Serial.println("Initializing weather station...");
 
-  // Mount SPIFFS and use the weather icons font from there
-  if (SPIFFS.exists("/weathericons.ttf")) {
-    Serial.println("Weather icons font found in SPIFFS");
-  } else {
-    Serial.println("Weather icons font not found in SPIFFS");
-  }
-
   updateWeatherData();
   if (currentLocation != "") {
     displayWeather();
   }
+  display.hibernate();
+#if CONFIG_LOADED
+  if (DEEP_SLEEP_DURATION != -1) {
+    esp_sleep_enable_timer_wakeup(DEEP_SLEEP_DURATION);
+    esp_deep_sleep_start();
+  }
+#endif
+  return;
 #endif
 
   // Initialize SPIFFS
