@@ -16,8 +16,8 @@ void ConfigManager::load(Config& cfg) {
   cfg.forecastDays   = p.getInt("fdays",    1);
   cfg.updateInterval = p.getInt("interval", 30);
   cfg.deepSleepMins  = p.getInt("sleep",   -1);
-  cfg.buttonPin      = p.getInt("btn",     -1);
-  cfg.ledPin         = p.getInt("led",     -1);
+  cfg.buttonPin      = p.getInt("btn",      9);
+  cfg.ledPin         = p.getInt("led",      8);
   p.end();
 }
 

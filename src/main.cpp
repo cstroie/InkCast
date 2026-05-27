@@ -387,6 +387,10 @@ void setup() {
   }
   Serial.printf("WiFi OK — %s\n", WiFi.localIP().toString().c_str());
 
+  // Start background config server so settings are always reachable
+  if (config.deepSleepMins == -1)
+    startConfigServer(config);
+
   if (updateWeatherData()) {
     ledBlink(2, 80, 80);    // 2 short flashes = success
     displayWeather();
@@ -401,6 +405,8 @@ void setup() {
 
 void loop() {
   // Only reached when deep sleep is disabled (deepSleepMins == -1)
+
+  handleConfigServer();
 
   // Periodic weather refresh
   unsigned long interval = (unsigned long)config.updateInterval * 60UL * 1000UL;

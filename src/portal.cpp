@@ -64,11 +64,12 @@ button:active{background:#357abd}
 <label>
   <span class="lbl">Forecast days (1&ndash;7)</span>
   <input name="fdays" type="number" min="1" max="7" value="%FDAYS%">
-  <small>How many days of forecast to fetch (display shows today only for now)</small>
+  <small>How many days of forecast to fetch. The display shows today&rsquo;s forecast only.</small>
 </label>
 <label>
   <span class="lbl">Update interval (minutes)</span>
   <input name="interval" type="number" min="1" max="1440" value="%INTERVAL%">
+  <small>How often to refresh weather data. 30&ndash;60 min is a good balance.</small>
 </label>
 </section>
 
@@ -77,20 +78,23 @@ button:active{background:#357abd}
 <label>
   <span class="lbl">Deep sleep duration (minutes)</span>
   <input name="sleep" type="number" min="-1" value="%SLEEP%">
-  <small>Device refreshes then sleeps for this long. Use -1 to stay awake.</small>
+  <small>After each refresh the device sleeps for this many minutes before waking to fetch again.
+         Set to <b>-1</b> to stay awake permanently (useful for a mains-powered frame);
+         set to <b>0</b> to disable the timer (device never wakes on its own).</small>
 </label>
 </section>
 
 <section>
-<h2>Hardware pins (&minus;1 = not connected)</h2>
+<h2>Hardware pins (&minus;1&nbsp;=&nbsp;not connected)</h2>
 <label>
   <span class="lbl">Button GPIO</span>
   <input name="btn" type="number" min="-1" max="48" value="%BTN%">
-  <small>Hold at boot to re-enter setup. Press anytime to force refresh.</small>
+  <small>Hold at boot (&gt;1 s) to re-enter setup. Short press during normal operation forces an immediate weather refresh.</small>
 </label>
 <label>
   <span class="lbl">LED GPIO</span>
   <input name="led" type="number" min="-1" max="48" value="%LED%">
+  <small>Active-low status LED. Steady = portal or network busy; fast blink = NTP sync; slow blink = WiFi connecting; 2 short = success; 3 long = error.</small>
 </label>
 </section>
 
@@ -100,17 +104,17 @@ button:active{background:#357abd}
 </html>)html";
 
 // ---------------------------------------------------------------------------
-// Helpers
+// Shared helpers
 // ---------------------------------------------------------------------------
 
 static String buildPage(const Config& cfg) {
   String html;
-  html.reserve(3000);
+  html.reserve(3500);
   html = FPSTR(HTML);
-  html.replace("%SSID%",  String(cfg.wifiSsid));
-  html.replace("%PASS%",  String(cfg.wifiPassword));
-  html.replace("%SEL_C%", cfg.tempUnits == 1 ? " selected" : "");
-  html.replace("%SEL_F%", cfg.tempUnits == 0 ? " selected" : "");
+  html.replace("%SSID%",     String(cfg.wifiSsid));
+  html.replace("%PASS%",     String(cfg.wifiPassword));
+  html.replace("%SEL_C%",    cfg.tempUnits == 1 ? " selected" : "");
+  html.replace("%SEL_F%",    cfg.tempUnits == 0 ? " selected" : "");
   html.replace("%FDAYS%",    String(cfg.forecastDays));
   html.replace("%INTERVAL%", String(cfg.updateInterval));
   html.replace("%SLEEP%",    String(cfg.deepSleepMins));
@@ -119,8 +123,25 @@ static String buildPage(const Config& cfg) {
   return html;
 }
 
+static void applyFormArgs(WebServer& server, Config& cfg) {
+  if (server.hasArg("ssid"))
+    strlcpy(cfg.wifiSsid,     server.arg("ssid").c_str(), sizeof(cfg.wifiSsid));
+  if (server.hasArg("pass"))
+    strlcpy(cfg.wifiPassword, server.arg("pass").c_str(), sizeof(cfg.wifiPassword));
+  cfg.tempUnits      = server.arg("units").toInt();
+  cfg.forecastDays   = constrain(server.arg("fdays").toInt(), 1, 7);
+  cfg.updateInterval = max(1, (int)server.arg("interval").toInt());
+  cfg.deepSleepMins  = server.arg("sleep").toInt();
+  cfg.buttonPin      = server.arg("btn").toInt();
+  cfg.ledPin         = server.arg("led").toInt();
+}
+
+static const char SAVED_HTML[] =
+  "<!DOCTYPE html><html><body style='font-family:system-ui;padding:40px;text-align:center'>"
+  "<h2>Saved!</h2><p>Rebooting&hellip;</p></body></html>";
+
 // ---------------------------------------------------------------------------
-// Portal
+// Blocking AP-mode portal (first boot / forced setup)
 // ---------------------------------------------------------------------------
 
 void runConfigPortal(Config& cfg, const char* apName) {
@@ -129,7 +150,6 @@ void runConfigPortal(Config& cfg, const char* apName) {
   IPAddress ip = WiFi.softAPIP();
   Serial.printf("Config portal: SSID=%s  IP=%s\n", apName, ip.toString().c_str());
 
-  // Captive-portal DNS: answer all queries with our IP
   DNSServer dns;
   dns.start(53, "*", ip);
 
@@ -140,26 +160,13 @@ void runConfigPortal(Config& cfg, const char* apName) {
   });
 
   server.on("/save", HTTP_POST, [&]() {
-    if (server.hasArg("ssid"))
-      strlcpy(cfg.wifiSsid,     server.arg("ssid").c_str(), sizeof(cfg.wifiSsid));
-    if (server.hasArg("pass"))
-      strlcpy(cfg.wifiPassword, server.arg("pass").c_str(), sizeof(cfg.wifiPassword));
-    cfg.tempUnits      = server.arg("units").toInt();
-    cfg.forecastDays   = constrain(server.arg("fdays").toInt(), 1, 7);
-    cfg.updateInterval = max(1, (int)server.arg("interval").toInt());
-    cfg.deepSleepMins  = server.arg("sleep").toInt();
-    cfg.buttonPin      = server.arg("btn").toInt();
-    cfg.ledPin         = server.arg("led").toInt();
-
+    applyFormArgs(server, cfg);
     ConfigManager::save(cfg);
-    server.send(200, "text/html",
-      "<!DOCTYPE html><html><body style='font-family:system-ui;padding:40px;text-align:center'>"
-      "<h2>Saved!</h2><p>Rebooting&hellip;</p></body></html>");
+    server.send(200, "text/html", SAVED_HTML);
     delay(1500);
     ESP.restart();
   });
 
-  // Captive portal redirect for all unknown paths
   server.onNotFound([&]() {
     server.sendHeader("Location", String("http://") + ip.toString() + "/");
     server.send(302, "text/plain", "");
@@ -172,4 +179,45 @@ void runConfigPortal(Config& cfg, const char* apName) {
     server.handleClient();
     delay(2);
   }
+}
+
+// ---------------------------------------------------------------------------
+// Non-blocking STA-mode config server (runs alongside normal operation)
+// ---------------------------------------------------------------------------
+
+static WebServer* bgServer = nullptr;
+static Config*    bgCfg    = nullptr;
+
+void startConfigServer(Config& cfg) {
+  if (bgServer) {
+    bgServer->stop();
+    delete bgServer;
+  }
+  bgCfg    = &cfg;
+  bgServer = new WebServer(80);
+
+  bgServer->on("/", HTTP_GET, []() {
+    bgServer->send(200, "text/html", buildPage(*bgCfg));
+  });
+
+  bgServer->on("/save", HTTP_POST, []() {
+    applyFormArgs(*bgServer, *bgCfg);
+    ConfigManager::save(*bgCfg);
+    bgServer->send(200, "text/html", SAVED_HTML);
+    delay(1500);
+    ESP.restart();
+  });
+
+  bgServer->onNotFound([]() {
+    IPAddress ip = WiFi.localIP();
+    bgServer->sendHeader("Location", String("http://") + ip.toString() + "/");
+    bgServer->send(302, "text/plain", "");
+  });
+
+  bgServer->begin();
+  Serial.printf("Config server started at http://%s/\n", WiFi.localIP().toString().c_str());
+}
+
+void handleConfigServer() {
+  if (bgServer) bgServer->handleClient();
 }
