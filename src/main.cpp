@@ -49,6 +49,7 @@ static bool  geoCached       = false;
 static String   currentLocation    = "";
 static uint16_t currentIconCode    = WI_NA;
 static int      currentWeatherCode = 0;
+static float    currentTemp        = 0.0f;  // actual current temperature
 static float    currentTempMax     = 0.0f;
 static float    currentTempMin     = 0.0f;
 static float    currentPrecipProb  = 0.0f;
@@ -153,9 +154,14 @@ void displayPortalInfo(const char* apName) {
 void displayWeather() {
   static const int COL = 142;
 
-  uint16_t iconColor = isSevereWeather(currentWeatherCode) ? GxEPD_RED : GxEPD_BLACK;
-  bool hot = (currentTempUnit == 'C') ? (currentTempMax >= 30.0f) : (currentTempMax >= 86.0f);
-  uint16_t tempColor = hot ? GxEPD_RED : GxEPD_BLACK;
+  bool severe  = isSevereWeather(currentWeatherCode);
+  bool hot     = (currentTempUnit == 'C') ? (currentTemp >= 30.0f) : (currentTemp >= 86.0f);
+  uint16_t iconColor = severe  ? GxEPD_RED : GxEPD_BLACK;
+  uint16_t currColor = hot     ? GxEPD_RED : GxEPD_BLACK;
+
+  // Umbrella count: 0–5, one per 20 pp (0% → 0, 1–20% → 1, …, 81–100% → 5)
+  int umbrellas = (int)((currentPrecipProb + 19.0f) / 20.0f);
+  if (umbrellas > 5) umbrellas = 5;
 
   struct tm timeinfo;
   bool timeOk = getLocalTime(&timeinfo);
@@ -166,11 +172,11 @@ void displayWeather() {
   do {
     display.fillScreen(GxEPD_WHITE);
 
-    // Icon — left column, baseline y=100 (~96px ascent centres in 128px)
+    // Weather icon — left column, baseline y=100
     display.setFont(WI_FONT);
     display.drawChar(12, 100, currentIconCode, iconColor, GxEPD_WHITE, 1);
 
-    // Header — city name bold, right-aligned
+    // City name — right-aligned, top row
     int firstComma = currentLocation.indexOf(',');
     String city = (firstComma != -1) ? currentLocation.substring(0, firstComma) : currentLocation;
     display.setFont(&FreeSansBold9pt7b);
@@ -180,29 +186,34 @@ void displayWeather() {
     display.setCursor(display.width() - (int16_t)cw - 2, 16);
     display.print(city);
 
-    // Max temperature
+    // Line 1 — current temperature, large, red when hot
     display.setFont(&FreeSansBold24pt7b);
-    display.setTextColor(tempColor);
-    char tempMaxStr[10];
-    snprintf(tempMaxStr, sizeof(tempMaxStr), "%.1f%c", currentTempMax, currentTempUnit);
-    display.setCursor(COL, 58);
-    display.print(tempMaxStr);
+    display.setTextColor(currColor);
+    char currStr[10];
+    snprintf(currStr, sizeof(currStr), "%.1f%c", currentTemp, currentTempUnit);
+    display.setCursor(COL, 54);
+    display.print(currStr);
 
-    // Min temperature
+    // Line 2 — min–max range
     display.setFont(&FreeSans12pt7b);
     display.setTextColor(GxEPD_BLACK);
-    char tempMinStr[12];
-    snprintf(tempMinStr, sizeof(tempMinStr), "min %.1f%c", currentTempMin, currentTempUnit);
-    display.setCursor(COL, 84);
-    display.print(tempMinStr);
+    char rangeStr[16];
+    snprintf(rangeStr, sizeof(rangeStr), "%.0f – %.0f%c", currentTempMin, currentTempMax, currentTempUnit);
+    display.setCursor(COL, 78);
+    display.print(rangeStr);
 
-    // Precipitation
-    char precipStr[14];
-    snprintf(precipStr, sizeof(precipStr), "rain %.0f%%", currentPrecipProb);
-    display.setCursor(COL, 108);
-    display.print(precipStr);
+    // Line 3 — umbrellas (0–5) for precipitation probability
+    display.setFont(WI_SMALL_FONT);
+    display.setTextColor(GxEPD_BLACK);
+    {
+      int x = COL;
+      for (int i = 0; i < umbrellas; i++) {
+        display.drawChar(x, 104, WI_UMBRELLA, GxEPD_BLACK, GxEPD_WHITE, 1);
+        x += 28;  // advance + 2px gap
+      }
+    }
 
-    // Footer — SSID | IP | date | time, built-in 6×8 font, centred full width
+    // Footer — SSID | IP | date | time, built-in 6×8 font, centred
     {
       String ssid = WiFi.SSID();
       if (ssid.length() > 10) ssid = ssid.substring(0, 10);
@@ -293,6 +304,7 @@ bool fetchWeatherData() {
   String url = "https://api.open-meteo.com/v1/forecast"
                "?latitude="  + String(cachedLat, 4) +
                "&longitude=" + String(cachedLon, 4) +
+               "&current=temperature_2m"
                "&daily=weather_code,temperature_2m_max,temperature_2m_min"
                ",precipitation_probability_max"
                "&timezone=auto&forecast_days=" + String(config.forecastDays) +
@@ -322,6 +334,7 @@ bool fetchWeatherData() {
   }
   ledOff();
 
+  currentTemp        = doc["current"]["temperature_2m"].as<float>();
   currentWeatherCode = doc["daily"]["weather_code"][0];
   currentTempMax     = doc["daily"]["temperature_2m_max"][0];
   currentTempMin     = doc["daily"]["temperature_2m_min"][0];

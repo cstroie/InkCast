@@ -13,8 +13,11 @@
 #include <Arduino.h>
 #include <Adafruit_GFX.h>
 #include "WeatherIcons48pt7b.h"
+#include "WeatherIcons12pt7b.h"
 
-#define WI_FONT (&weathericons48pt8b)
+#define WI_FONT        (&weathericons48pt8b)
+#define WI_SMALL_FONT  (&weathericons12pt8b)
+#define WI_UMBRELLA    0xF084
 
 // Codepoints used
 #define WI_DAY_SUNNY     0xF00D
