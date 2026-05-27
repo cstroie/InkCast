@@ -47,9 +47,9 @@ on a GDEM029C90 128×296 panel via GxEPD2. No API keys required for either servi
 ```
 x=12  y=100   Weather icon, 48pt, left column
 x=right-2 y=16   City name, FreeSansBold9pt, right-aligned
-COL=142  y=54    Current temperature, FreeSansBold24pt (red if >= 30C/86F)
-COL=142  y=78    Min – Max range, FreeSans12pt
-COL=142  y=104   Umbrella icons 0–5, WeatherIcons12pt (1 per 20pp)
+COL=142  y=62    Current temperature, FreeSansBold24pt (red if >= 30C/86F)
+COL=142  y=88    Min ... Max range, FreeSans12pt
+COL=142  y=112   Umbrella icons 0–5, WeatherIcons12pt (1 per 20pp)
 centered y=120   Footer: SSID | IP | forecast date | NTP time, 6×8 built-in font
 ```
 

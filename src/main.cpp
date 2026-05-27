@@ -191,7 +191,7 @@ void displayWeather() {
     display.setTextColor(currColor);
     char currStr[10];
     snprintf(currStr, sizeof(currStr), "%.1f%c", currentTemp, currentTempUnit);
-    display.setCursor(COL, 54);
+    display.setCursor(COL, 62);
     display.print(currStr);
 
     // Line 2 — min–max range
@@ -199,7 +199,7 @@ void displayWeather() {
     display.setTextColor(GxEPD_BLACK);
     char rangeStr[16];
     snprintf(rangeStr, sizeof(rangeStr), "%.0f ... %.0f%c", currentTempMin, currentTempMax, currentTempUnit);
-    display.setCursor(COL, 78);
+    display.setCursor(COL, 88);
     display.print(rangeStr);
 
     // Line 3 — umbrellas (0–5) for precipitation probability
@@ -208,7 +208,7 @@ void displayWeather() {
     {
       int x = COL;
       for (int i = 0; i < umbrellas; i++) {
-        display.drawChar(x, 104, WI_UMBRELLA, GxEPD_BLACK, GxEPD_WHITE, 1);
+        display.drawChar(x, 112, WI_UMBRELLA, GxEPD_BLACK, GxEPD_WHITE, 1);
         x += 28;  // advance + 2px gap
       }
     }
