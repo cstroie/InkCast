@@ -1,4 +1,4 @@
-# CLAUDE.md — ePaperFrame project context
+# CLAUDE.md — InkCast project context
 
 ## Project summary
 

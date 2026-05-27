@@ -1,4 +1,4 @@
-# ePaperFrame
+# InkCast
 
 A self-contained weather display for a 2.9" tri-color e-paper panel, running on an ESP32-C3. It fetches weather data and geolocation automatically, shows today's forecast with a weather icon, temperatures, precipitation probability, and a status footer. All settings are configured at runtime through a browser-based portal — no recompilation needed.
 
@@ -58,7 +58,7 @@ A self-contained weather display for a 2.9" tri-color e-paper panel, running on 
 
 1. Flash the firmware with PlatformIO.
 2. On first boot (no WiFi saved), the display shows the setup instructions.
-3. Connect your phone or laptop to the `ePaperFrame-XXYY` WiFi network.
+3. Connect your phone or laptop to the `InkCast-XXYY` WiFi network.
 4. Open `http://192.168.4.1` in a browser and fill in your settings.
 5. Click **Save & Restart** — the device reboots and connects to your WiFi.
 
@@ -66,7 +66,7 @@ A self-contained weather display for a 2.9" tri-color e-paper panel, running on 
 
 The portal is accessible two ways:
 
-- **At boot**: hold the button while powering on, or if no WiFi is saved — the device starts as an AP (`ePaperFrame-XXYY`) with a captive portal DNS redirect.
+- **At boot**: hold the button while powering on, or if no WiFi is saved — the device starts as an AP (`InkCast-XXYY`) with a captive portal DNS redirect.
 - **During normal operation** (when deep sleep is disabled): navigate to `http://<device-ip>/` from any device on the same network.
 
 ### Settings

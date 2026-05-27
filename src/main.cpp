@@ -376,7 +376,7 @@ void setup() {
   uint8_t mac[6];
   WiFi.macAddress(mac);
   char apName[24];
-  snprintf(apName, sizeof(apName), "ePaperFrame-%02X%02X", mac[4], mac[5]);
+  snprintf(apName, sizeof(apName), "InkCast-%02X%02X", mac[4], mac[5]);
 
   // Enter config portal if: no WiFi credentials saved, or button held at boot
   bool forcePortal = (config.buttonPin != -1 && digitalRead(config.buttonPin) == LOW);
@@ -447,7 +447,7 @@ void loop() {
         uint8_t mac[6];
         WiFi.macAddress(mac);
         char apName[24];
-        snprintf(apName, sizeof(apName), "ePaperFrame-%02X%02X", mac[4], mac[5]);
+        snprintf(apName, sizeof(apName), "InkCast-%02X%02X", mac[4], mac[5]);
         displayPortalInfo(apName);
         display.hibernate();
         runConfigPortal(config, apName);

@@ -17,7 +17,7 @@ static const char HTML[] PROGMEM = R"html(<!DOCTYPE html>
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>ePaperFrame Setup</title>
+<title>InkCast Setup</title>
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
 body{font-family:system-ui,sans-serif;background:#f0f2f5;color:#1a1a2e;padding:20px}
@@ -37,7 +37,7 @@ button:active{background:#357abd}
 </style>
 </head>
 <body>
-<h1>ePaperFrame Setup</h1>
+<h1>InkCast Setup</h1>
 <form method="POST" action="/save">
 
 <section>
