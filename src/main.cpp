@@ -44,19 +44,19 @@ static const int retrySchedule[]  = {1, 2, 3, 4, 5, 10, 15};
 static const int retryScheduleLen = (int)(sizeof(retrySchedule) / sizeof(retrySchedule[0]));
 
 // ---------------------------------------------------------------------------
-// Geolocation cache — survives loop() refresh cycles, reset on deep-sleep wakeup
+// Geolocation cache — stored in RTC memory, survives deep sleep
 // ---------------------------------------------------------------------------
 
-static float cachedLat       = 0.0f;
-static float cachedLon       = 0.0f;
-static long  cachedUtcOffset = 0;
-static bool  geoCached       = false;
+RTC_DATA_ATTR static float cachedLat          = 0.0f;
+RTC_DATA_ATTR static float cachedLon          = 0.0f;
+RTC_DATA_ATTR static long  cachedUtcOffset    = 0;
+RTC_DATA_ATTR static bool  geoCached          = false;
+RTC_DATA_ATTR static char  currentLocation[96] = "";
 
 // ---------------------------------------------------------------------------
 // Weather state
 // ---------------------------------------------------------------------------
 
-static String   currentLocation    = "";
 static uint16_t currentIconCode    = WI_NA;
 static int      currentWeatherCode = 0;
 static float    currentTemp        = 0.0f;  // actual current temperature
@@ -206,12 +206,16 @@ void displayWeather() {
     }
 
     // City name — right-aligned, top row
-    int firstComma = currentLocation.indexOf(',');
-    String city = (firstComma != -1) ? currentLocation.substring(0, firstComma) : currentLocation;
+    const char* comma = strchr(currentLocation, ',');
+    char city[64];
+    if (comma)
+      snprintf(city, sizeof(city), "%.*s", (int)(comma - currentLocation), currentLocation);
+    else
+      snprintf(city, sizeof(city), "%s", currentLocation);
     display.setFont(&FreeSansBold9pt7b);
     display.setTextColor(GxEPD_BLACK);
     int16_t cx, cy; uint16_t cw, ch;
-    display.getTextBounds(city.c_str(), 0, 0, &cx, &cy, &cw, &ch);
+    display.getTextBounds(city, 0, 0, &cx, &cy, &cw, &ch);
     display.setCursor(display.width() - (int16_t)cw - 2, 16);
     display.print(city);
 
@@ -317,15 +321,16 @@ bool fetchGeolocation() {
     return false;
   }
 
-  currentLocation = String(doc["city"].as<const char*>()) + ", " +
-                    String(doc["regionName"].as<const char*>()) + ", " +
-                    String(doc["country"].as<const char*>());
+  snprintf(currentLocation, sizeof(currentLocation), "%s, %s, %s",
+           doc["city"].as<const char*>(),
+           doc["regionName"].as<const char*>(),
+           doc["country"].as<const char*>());
   cachedLat       = doc["lat"].as<float>();
   cachedLon       = doc["lon"].as<float>();
   cachedUtcOffset = doc["offset"].as<long>();
 
   Serial.printf("Location: %s  (%.4f, %.4f)  UTC+%lds\n",
-                currentLocation.c_str(), cachedLat, cachedLon, cachedUtcOffset);
+                currentLocation, cachedLat, cachedLon, cachedUtcOffset);
   ledOff();
   return true;
 }
