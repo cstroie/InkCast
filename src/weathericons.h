@@ -12,8 +12,9 @@
 
 #include <Arduino.h>
 #include "WeatherIcons32pt7b.h"
+#include "WeatherIcons48pt7b.h"
 
-#define WI_FONT (&weathericons32pt8b)
+#define WI_FONT (&weathericons48pt8b)
 
 // Codepoints used
 #define WI_DAY_SUNNY     0xF00D

@@ -48,7 +48,9 @@
 #include <GxEPD2_7C.h>
 #include <Fonts/FreeMonoBold12pt7b.h>
 #include <Fonts/FreeSans9pt7b.h>
-#include <Fonts/FreeSansBold18pt7b.h>
+#include <Fonts/FreeSansBold9pt7b.h>
+#include <Fonts/FreeSans12pt7b.h>
+#include <Fonts/FreeSansBold24pt7b.h>
 #include "display.h"
 
 /**
@@ -287,11 +289,23 @@ void updateWeatherData() {
 
 /**
  * Display weather information on the e-paper screen
+ *
+ * Layout (296x128, landscape):
+ *   Left third  (x=0..97):   weather icon, vertically centred
+ *   Right two-thirds (x=102..295):
+ *     header  – city name, right-aligned
+ *     main    – max temp (large), min temp, precip probability
+ *     footer  – date and time, small font
  */
 void displayWeather() {
+  static const int COL = 142;  // left edge of text column (clear of 48pt icon + breathing room)
+
   uint16_t iconColor = isSevereWeather(currentWeatherCode) ? GxEPD_RED : GxEPD_BLACK;
-  bool hot = (currentTempUnit == 'C') ? (currentTempMax >= 35.0f) : (currentTempMax >= 95.0f);
+  bool hot = (currentTempUnit == 'C') ? (currentTempMax >= 30.0f) : (currentTempMax >= 86.0f);
   uint16_t tempColor = hot ? GxEPD_RED : GxEPD_BLACK;
+
+  struct tm timeinfo;
+  bool timeOk = getLocalTime(&timeinfo);
 
   display.setRotation(1);
   display.setFullWindow();
@@ -299,75 +313,58 @@ void displayWeather() {
   do {
     display.fillScreen(GxEPD_WHITE);
 
-    // --- Header: city left, time right ---
-    display.setFont(&FreeSans9pt7b);
+    // --- Icon: left third, vertically centred ---
+    // 48pt glyphs are ~96px tall; baseline at y=100 centres them in 128px
+    display.setFont(WI_FONT);
+    display.drawChar(12, 100, currentIconCode, iconColor, GxEPD_WHITE, 1);
+
     display.setTextColor(GxEPD_BLACK);
 
+    // --- Header: city name bold, right-aligned ---
     int firstComma = currentLocation.indexOf(',');
     String city = (firstComma != -1) ? currentLocation.substring(0, firstComma) : currentLocation;
-    display.setCursor(2, 18);
+    display.setFont(&FreeSansBold9pt7b);
+    int16_t cx, cy; uint16_t cw, ch;
+    display.getTextBounds(city.c_str(), 0, 0, &cx, &cy, &cw, &ch);
+    display.setCursor(display.width() - (int16_t)cw - 2, 16);
     display.print(city);
 
-    struct tm timeinfo;
-    bool timeOk = getLocalTime(&timeinfo);
-    char ts[6];
-    if (timeOk)
-      snprintf(ts, sizeof(ts), "%02d:%02d", timeinfo.tm_hour, timeinfo.tm_min);
-    else
-      snprintf(ts, sizeof(ts), "--:--");
-    int16_t tx, ty; uint16_t tw, th;
-    display.getTextBounds(ts, 0, 0, &tx, &ty, &tw, &th);
-    display.setCursor(display.width() - (int16_t)tw - 2, 18);
-    display.print(ts);
-
-    // Red divider below header
-    display.drawFastHLine(0, 23, display.width(), GxEPD_RED);
-
-    // --- Middle: icon (left) + data (right) ---
-    // Icon, baseline y=100
-    display.setFont(WI_FONT);
-    display.drawChar(2, 100, currentIconCode, iconColor, GxEPD_WHITE, 1);
-
-    // Max temperature (large)
-    display.setFont(&FreeSansBold18pt7b);
+    // --- Main: max temperature (large) ---
+    display.setFont(&FreeSansBold24pt7b);
     char tempMaxStr[10];
     snprintf(tempMaxStr, sizeof(tempMaxStr), "%.1f%c", currentTempMax, currentTempUnit);
     display.setTextColor(tempColor);
-    display.setCursor(70, 64);
+    display.setCursor(COL, 58);
     display.print(tempMaxStr);
 
     // Min temperature
-    display.setFont(&FreeSans9pt7b);
+    display.setFont(&FreeSans12pt7b);
+    display.setTextColor(GxEPD_BLACK);
     char tempMinStr[12];
     snprintf(tempMinStr, sizeof(tempMinStr), "min %.1f%c", currentTempMin, currentTempUnit);
-    display.setTextColor(GxEPD_BLACK);
-    display.setCursor(70, 82);
+    display.setCursor(COL, 84);
     display.print(tempMinStr);
 
-    // Precipitation
+    // Precipitation (own line)
     char precipStr[14];
-    snprintf(precipStr, sizeof(precipStr), "Precip: %.0f%%", currentPrecipProb);
-    display.setCursor(70, 98);
+    snprintf(precipStr, sizeof(precipStr), "rain %.0f%%", currentPrecipProb);
+    display.setCursor(COL, 108);
     display.print(precipStr);
 
-    // Red divider above footer
-    display.drawFastHLine(0, 105, display.width(), GxEPD_RED);
-
-    // --- Footer: date ---
-    static const char* dayNames[] = {"Sun","Mon","Tue","Wed","Thu","Fri","Sat"};
-    static const char* monNames[] = {"Jan","Feb","Mar","Apr","May","Jun",
-                                     "Jul","Aug","Sep","Oct","Nov","Dec"};
-    char dateStr[20];
-    if (timeOk)
-      snprintf(dateStr, sizeof(dateStr), "%s %d %s %d",
-               dayNames[timeinfo.tm_wday], timeinfo.tm_mday,
-               monNames[timeinfo.tm_mon], 1900 + timeinfo.tm_year);
-    else
-      dateStr[0] = '\0';
-    display.setFont(&FreeSans9pt7b);
-    display.setTextColor(GxEPD_BLACK);
-    display.setCursor(2, 122);
-    display.print(dateStr);
+    // --- Footer: "DD.MM.YYYY HH:MM", small built-in font, centred in right area ---
+    if (timeOk) {
+      char footer[20];
+      snprintf(footer, sizeof(footer), "%02d.%02d.%04d %02d:%02d",
+               timeinfo.tm_mday, timeinfo.tm_mon + 1, 1900 + timeinfo.tm_year,
+               timeinfo.tm_hour, timeinfo.tm_min);
+      display.setFont(NULL);          // built-in 6x8 bitmap font
+      display.setTextSize(1);
+      int16_t fx, fy; uint16_t fw, fh;
+      display.getTextBounds(footer, 0, 0, &fx, &fy, &fw, &fh);
+      int centerX = COL + (display.width() - COL - (int16_t)fw) / 2;
+      display.setCursor(centerX, 120);
+      display.print(footer);
+    }
   } while (display.nextPage());
 }
 
