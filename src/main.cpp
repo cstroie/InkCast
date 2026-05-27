@@ -89,7 +89,7 @@ void ledOff();
 // Weather station variables
 String currentLocation = "";
 String currentWeather = "";
-String weatherLabel = "";
+uint16_t currentIconCode = WI_NA;
 unsigned long lastWeatherUpdate = 0;
 
 /**
@@ -237,8 +237,7 @@ void updateWeatherData() {
   float tempMin = doc["daily"]["temperature_2m_min"][0];
   float precipProb = doc["daily"]["precipitation_probability_max"][0];
 
-  const char* label = getWeatherLabel(weatherCode);
-  weatherLabel = label ? String(label) : String("Code ") + weatherCode;
+  currentIconCode = getIconCode(weatherCode);
 
   #ifdef WEATHER_UNITS
   char tempUnit = (WEATHER_UNITS == 0) ? 'F' : 'C';
@@ -252,7 +251,7 @@ void updateWeatherData() {
   Serial.println("Weather data updated");
   Serial.println("Location: " + currentLocation);
   Serial.println("Weather: " + currentWeather);
-  Serial.println("Condition: " + weatherLabel);
+  Serial.printf("Icon code: 0x%04X\n", currentIconCode);
 
   lastWeatherUpdate = millis();
 }
@@ -267,35 +266,37 @@ void displayWeather() {
   do {
     display.fillScreen(GxEPD_WHITE);
 
-    display.setFont(&FreeMonoBold12pt7b);
     display.setTextColor(GxEPD_BLACK);
 
-    // City name (strip region/country)
+    // Weather icon (left column, ~55px wide at 32pt)
+    // drawChar() accepts uint16_t codepoints, needed for private-use area glyphs
+    display.setFont(WI_FONT);
+    display.drawChar(2, 100, currentIconCode, GxEPD_BLACK, GxEPD_WHITE, 1);
+
+    // Text (right column)
+    display.setFont(&FreeMonoBold12pt7b);
+
+    // City name
     int firstComma = currentLocation.indexOf(',');
     String city = (firstComma != -1) ? currentLocation.substring(0, firstComma) : currentLocation;
-    display.setCursor(10, 30);
+    display.setCursor(70, 25);
     display.print(city);
 
-    // Weather condition label
-    display.setCursor(10, 60);
-    display.print(weatherLabel);
-
-    // Temperature and precipitation
+    // Temperature
     int newlinePos = currentWeather.indexOf('\n');
+    display.setCursor(70, 55);
+    display.print(newlinePos != -1 ? currentWeather.substring(0, newlinePos) : currentWeather);
+
+    // Precipitation
     if (newlinePos != -1) {
-      display.setCursor(10, 90);
-      display.print(currentWeather.substring(0, newlinePos));
-      display.setCursor(10, 115);
+      display.setCursor(70, 80);
       display.print(currentWeather.substring(newlinePos + 1));
-    } else {
-      display.setCursor(10, 90);
-      display.print(currentWeather);
     }
 
     // Timestamp
     char ts[6];
     snprintf(ts, sizeof(ts), "%02d:%02d", hour(), minute());
-    display.setCursor(10, 140);
+    display.setCursor(70, 110);
     display.print(ts);
   } while (display.nextPage());
 }
