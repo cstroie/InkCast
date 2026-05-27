@@ -439,7 +439,7 @@ bool updateWeatherData() {
     if (!fetchGeolocation()) return false;
     syncNTP();
     geoCached = true;
-  } else if (time(nullptr) - rtcLastNtpSync > 86400) {
+  } else if (time(nullptr) - rtcLastNtpSync > 28800) {
     syncNTP();
   }
   if (!fetchWeatherData()) return false;
