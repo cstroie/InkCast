@@ -89,31 +89,8 @@ void ledOff();
 // Weather station variables
 String currentLocation = "";
 String currentWeather = "";
-String weatherIcon = "";
+String weatherLabel = "";
 unsigned long lastWeatherUpdate = 0;
-
-// Weather icon mapping from WMO codes to Weather Icons font codes
-const char* weatherIcons[] = {
-    "wi-day-sunny",           // 0: Clear sky
-    "wi-day-cloudy",          // 1: Mostly Cloudy
-    "wi-day-cloudy",          // 2: Partly Cloudy
-    "wi-cloudy",              // 3: Overcast
-    "wi-day-haze",            // 5: Haze
-    "wi-day-fog",             // 10: Mist
-    "wi-fog",                 // 45: Fog
-    "wi-fog",                 // 48: Freezing Fog
-    "wi-day-sprinkle",        // 51: Drizzle: Light
-    "wi-day-sprinkle",        // 53: Drizzle: Moderate
-    "wi-day-rain",            // 55: Drizzle: Heavy
-    "wi-day-sleet",           // 56: Freezing Drizzle: Light
-    "wi-day-sleet",           // 57: Freezing Drizzle: Moderate
-    "wi-day-rain",            // 61: Rain: Slight
-    "wi-day-rain",            // 63: Rain: Moderate
-    "wi-day-rain",            // 65: Rain: Heavy
-    "wi-day-sleet",           // 66: Freezing Rain: Light
-    "wi-day-sleet",           // 67: Freezing Rain: Dense
-    "wi-day-snow"             // 71: Snow: Light
-};
 
 /**
  * Get geolocation data from ip-api.com
@@ -184,7 +161,7 @@ String getWeatherData(float lat, float lon) {
   String url = "https://api.open-meteo.com/v1/forecast";
 
   String params = "latitude=" + String(lat, 6) + "&longitude=" + String(lon, 6) +
-                  "&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_hours,precipitation_probability_max" +
+                  "&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max" +
                   "&timezone=auto&forecast_days=1";
 
 #if WEATHER_UNITS == 0
@@ -195,14 +172,12 @@ String getWeatherData(float lat, float lon) {
   Serial.println("Using metric units");
 #endif
 
+  String fullUrl = url + "?" + params;
   Serial.print("Request URL: ");
-  Serial.println(url);
-  Serial.print("Request params: ");
-  Serial.println(params);
+  Serial.println(fullUrl);
 
-  http.begin(url);
-  http.addHeader("Content-Type", "application/x-www-form-urlencoded");
-  int httpCode = http.POST(params);
+  http.begin(fullUrl);
+  int httpCode = http.GET();
 
   Serial.print("HTTP Response Code: ");
   Serial.println(httpCode);
@@ -262,27 +237,22 @@ void updateWeatherData() {
   float tempMin = doc["daily"]["temperature_2m_min"][0];
   float precipProb = doc["daily"]["precipitation_probability_max"][0];
 
-  // Map weather code to icon
-  if (weatherCode < sizeof(weatherIcons)/sizeof(weatherIcons[0])) {
-    weatherIcon = weatherIcons[weatherCode];
-  } else {
-    weatherIcon = "wi-na"; // Not available
-  }
+  const char* label = getWeatherLabel(weatherCode);
+  weatherLabel = label ? String(label) : String("Code ") + weatherCode;
 
-  // Format weather string
   #ifdef WEATHER_UNITS
   char tempUnit = (WEATHER_UNITS == 0) ? 'F' : 'C';
   #else
-  char tempUnit = 'C'; // Default to Celsius if not defined
+  char tempUnit = 'C';
   #endif
   currentWeather = String(tempMax, 1) + "°" + tempUnit + " / " +
                    String(tempMin, 1) + "°" + tempUnit + "\n" +
-                   "Precip: " + String(precipProb) + "%";
+                   "Precip: " + String(precipProb, 0) + "%";
 
   Serial.println("Weather data updated");
   Serial.println("Location: " + currentLocation);
   Serial.println("Weather: " + currentWeather);
-  Serial.println("Icon: " + weatherIcon);
+  Serial.println("Condition: " + weatherLabel);
 
   lastWeatherUpdate = millis();
 }
@@ -297,58 +267,36 @@ void displayWeather() {
   do {
     display.fillScreen(GxEPD_WHITE);
 
-    // Calculate position for weather icon
-    int iconX = 10;
-    int iconY = 10;
-    int iconSize = 100;
+    display.setFont(&FreeMonoBold12pt7b);
+    display.setTextColor(GxEPD_BLACK);
 
-    // Draw weather icon using TTF font
-    uint16_t iconCode = getIconCodeForWeather(weatherIcon);
-
-    // Use the weather icons font
-    display.setFont(weathericons_font);
-
-    display.setTextSize(4); // Scale factor
-    display.setCursor(iconX, iconY + 80); // Adjust for baseline
-
-    // If icon code is not available, fall back to text
-    if (iconCode == WI_NA) {
-      display.setFont(&FreeMonoBold12pt7b);
-      display.setTextSize(1);
-      display.setCursor(iconX, iconY + 30);
-      display.print("N/A");
-    } else {
-      display.print((char)iconCode);
-    }
-
-    // Display location (city) - extract just the city name
+    // City name (strip region/country)
     int firstComma = currentLocation.indexOf(',');
     String city = (firstComma != -1) ? currentLocation.substring(0, firstComma) : currentLocation;
-
-    // Set font for location
-    display.setFont(&FreeMonoBold12pt7b);
-    display.setCursor(120, 30);
+    display.setCursor(10, 30);
     display.print(city);
 
-    // Display weather conditions below location
-    display.setCursor(120, 60);
+    // Weather condition label
+    display.setCursor(10, 60);
+    display.print(weatherLabel);
 
-    // Split weather info into lines if needed
+    // Temperature and precipitation
     int newlinePos = currentWeather.indexOf('\n');
     if (newlinePos != -1) {
-      String firstLine = currentWeather.substring(0, newlinePos);
-      String secondLine = currentWeather.substring(newlinePos + 1);
-
-      display.print(firstLine);
-      display.setCursor(120, 90);
-      display.print(secondLine);
+      display.setCursor(10, 90);
+      display.print(currentWeather.substring(0, newlinePos));
+      display.setCursor(10, 115);
+      display.print(currentWeather.substring(newlinePos + 1));
     } else {
+      display.setCursor(10, 90);
       display.print(currentWeather);
     }
 
-    // Display update timestamp at bottom
-    display.setCursor(120, 110);
-    display.print("Updated: " + String(hour()) + ":" + String(minute()));
+    // Timestamp
+    char ts[6];
+    snprintf(ts, sizeof(ts), "%02d:%02d", hour(), minute());
+    display.setCursor(10, 140);
+    display.print(ts);
   } while (display.nextPage());
 }
 

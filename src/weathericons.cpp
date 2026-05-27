@@ -1,25 +1,53 @@
 /*
  * SPDX-License-Identifier: GPL-3.0
  *
- * Weather Icons Font Implementation
+ * Copyright (C) 2025 Costin Stroie <costinstroie@eridu.eu.org>
+ *
+ * Weather Icons - WMO code to text label mapping
  */
 
 #include "weathericons.h"
 
-// Use FreeMonoBold12pt7b as a placeholder font
-const GFXfont *weathericons_font = &FreeMonoBold12pt7b;
+struct WmoEntry {
+  int       code;
+  const char* label;
+};
 
-// Icon mapping function
-uint16_t getIconCodeForWeather(const String& iconName) {
-    if (iconName == "wi-day-sunny") return WI_DAY_SUNNY;
-    if (iconName == "wi-day-cloudy") return WI_DAY_CLOUDY;
-    if (iconName == "wi-cloudy") return WI_CLOUDY;
-    if (iconName == "wi-day-haze") return WI_DAY_HAZE;
-    if (iconName == "wi-day-fog") return WI_DAY_FOG;
-    if (iconName == "wi-fog") return WI_FOG;
-    if (iconName == "wi-day-sprinkle") return WI_DAY_SPRINKLE;
-    if (iconName == "wi-day-rain") return WI_DAY_RAIN;
-    if (iconName == "wi-day-sleet") return WI_DAY_SLEET;
-    if (iconName == "wi-day-snow") return WI_DAY_SNOW;
-    return WI_NA; // Default icon
+static const WmoEntry wmoTable[] = {
+  {  0, "Clear"      },
+  {  1, "Mostly Clr" },
+  {  2, "Part.Cloudy" },
+  {  3, "Overcast"   },
+  { 45, "Fog"        },
+  { 48, "Frz.Fog"    },
+  { 51, "Lt.Drizzle" },
+  { 53, "Drizzle"    },
+  { 55, "Hvy Drzl"   },
+  { 56, "Frz.Drzl"   },
+  { 57, "Hvy FDrzl"  },
+  { 61, "Lt.Rain"    },
+  { 63, "Rain"       },
+  { 65, "Hvy Rain"   },
+  { 66, "Frz.Rain"   },
+  { 67, "Hvy FRain"  },
+  { 71, "Lt.Snow"    },
+  { 73, "Snow"       },
+  { 75, "Hvy Snow"   },
+  { 77, "Snow Grns"  },
+  { 80, "Showers"    },
+  { 81, "Rain Shwrs" },
+  { 82, "Hvy Shwrs"  },
+  { 85, "Snow Shwrs" },
+  { 86, "HvySnwShwr" },
+  { 95, "Tstorm"     },
+  { 96, "Tstorm+Hail"},
+  { 99, "Tstorm+Hail"},
+};
+
+const char* getWeatherLabel(int wmoCode) {
+  for (size_t i = 0; i < sizeof(wmoTable) / sizeof(wmoTable[0]); i++) {
+    if (wmoTable[i].code == wmoCode)
+      return wmoTable[i].label;
+  }
+  return nullptr;
 }

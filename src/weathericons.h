@@ -1,38 +1,18 @@
 /*
  * SPDX-License-Identifier: GPL-3.0
  *
- * Weather Icons Font - Subset for ESP32
- * Based on weather-icons by Erik Flowers
- * https://github.com/erikflowers/weather-icons
+ * Copyright (C) 2025 Costin Stroie <costinstroie@eridu.eu.org>
+ *
+ * Weather Icons - WMO code to text label mapping
+ * https://open-meteo.com/en/docs#weathervariables
  */
 
 #ifndef WEATHERICONS_H
 #define WEATHERICONS_H
 
-#include <Adafruit_GFX.h>
+#include <Arduino.h>
 
-// Weather icons font data - subset containing only the icons we need
-// This is a simplified version - in practice you would generate this
-// from the actual TTF file using font conversion tools
-
-// Font structure
-#include <Fonts/FreeMonoBold12pt7b.h> // Include a standard font as a placeholder
-extern const GFXfont *weathericons_font;
-
-// Icon Unicode mappings
-#define WI_DAY_SUNNY 0xF00D
-#define WI_DAY_CLOUDY 0xF002
-#define WI_CLOUDY 0xF013
-#define WI_DAY_HAZE 0xF0B6
-#define WI_DAY_FOG 0xF001
-#define WI_FOG 0xF014
-#define WI_DAY_SPRINKLE 0xF003
-#define WI_DAY_RAIN 0xF008
-#define WI_DAY_SLEET 0xF0B2
-#define WI_DAY_SNOW 0xF00A
-#define WI_NA 0xF07B // Not available
-
-// Function to get icon code from weather icon name
-uint16_t getIconCodeForWeather(const String& iconName);
+// Returns a short text label for a WMO weather code, or nullptr if unknown.
+const char* getWeatherLabel(int wmoCode);
 
 #endif // WEATHERICONS_H
