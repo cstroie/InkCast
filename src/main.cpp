@@ -34,6 +34,16 @@
 static Config config;
 
 // ---------------------------------------------------------------------------
+// Deep-sleep retry counter — survives deep sleep via RTC memory
+// ---------------------------------------------------------------------------
+
+RTC_DATA_ATTR static int fetchRetryIndex = 0;
+
+// Progressive retry schedule in minutes (last entry is the cap)
+static const int retrySchedule[]  = {1, 2, 3, 4, 5, 10, 15};
+static const int retryScheduleLen = (int)(sizeof(retrySchedule) / sizeof(retrySchedule[0]));
+
+// ---------------------------------------------------------------------------
 // Geolocation cache — survives loop() refresh cycles, reset on deep-sleep wakeup
 // ---------------------------------------------------------------------------
 
@@ -81,6 +91,18 @@ void deepSleep() {
     esp_sleep_enable_timer_wakeup((uint64_t)config.deepSleepMins * 60ULL * 1000000ULL);
     esp_deep_sleep_start();
   }
+}
+
+// Sleep for the next retry interval without updating the display.
+// Only effective when periodic deep sleep is configured (deepSleepMins > 0).
+void deepSleepRetry() {
+  if (config.deepSleepMins <= 0) return;
+  int idx  = min(fetchRetryIndex, retryScheduleLen - 1);
+  int mins = retrySchedule[idx];
+  fetchRetryIndex++;
+  Serial.printf("Retry %d: sleeping %d min before next attempt\n", fetchRetryIndex, mins);
+  esp_sleep_enable_timer_wakeup((uint64_t)mins * 60ULL * 1000000ULL);
+  esp_deep_sleep_start();
 }
 
 bool isSevereWeather(int code) {
@@ -444,9 +466,12 @@ void setup() {
 
   if (WiFi.status() != WL_CONNECTED) {
     ledBlink(3, 300, 200);  // 3 long flashes = error
-    displayError("WiFi failed", config.wifiSsid);
     display.hibernate();
-    deepSleep();
+    if (config.deepSleepMins > 0) {
+      deepSleepRetry();   // never returns
+    } else {
+      displayError("WiFi failed", config.wifiSsid);
+    }
     return;
   }
   Serial.printf("WiFi OK — %s\n", WiFi.localIP().toString().c_str());
@@ -455,27 +480,42 @@ void setup() {
   if (config.deepSleepMins == -1)
     startConfigServer(config);
 
-  // Fetch with exponential backoff; don't touch the display until data arrives.
-  {
-    unsigned long retryMs = (unsigned long)random(60, 300) * 1000UL;  // 1–5 min initial
-    int attempt = 0;
+  // Each fetch attempt: try once, wait 10 s, try once more before giving up.
+  auto tryFetchTwice = []() -> bool {
+    if (updateWeatherData()) return true;
+    ledBlink(3, 300, 200);
+    Serial.println("Fetch failed, quick retry in 10 s");
+    delay(10000);
+    return updateWeatherData();
+  };
+
+  if (tryFetchTwice()) {
+    fetchRetryIndex = 0;
+    ledBlink(2, 80, 80);
+    displayWeather();
+  } else {
+    ledBlink(3, 300, 200);
+    if (config.deepSleepMins > 0) {
+      display.hibernate();
+      deepSleepRetry();   // never returns
+      return;
+    }
+    // Stay-awake mode: spin with exponential back-off, two tries each round
+    unsigned long retryMs = (unsigned long)random(60, 300) * 1000UL;
     while (true) {
-      if (updateWeatherData()) {
-        ledBlink(2, 80, 80);
-        displayWeather();
-        break;
-      }
-      ledBlink(3, 300, 200);
-      // In sleep mode give up after 3 attempts; the next wakeup will retry.
-      if (config.deepSleepMins != -1 && ++attempt >= 3) break;
-      Serial.printf("Fetch failed (attempt %d), retrying in %lus\n",
-                    attempt + 1, retryMs / 1000);
+      Serial.printf("Fetch failed, retrying in %lus\n", retryMs / 1000);
       unsigned long waitUntil = millis() + retryMs;
       while (millis() < waitUntil) {
         handleConfigServer();
         delay(100);
       }
-      retryMs = min(retryMs * 2, 30UL * 60UL * 1000UL);  // cap at 30 min
+      if (tryFetchTwice()) {
+        ledBlink(2, 80, 80);
+        displayWeather();
+        break;
+      }
+      ledBlink(3, 300, 200);
+      retryMs = min(retryMs * 2, 30UL * 60UL * 1000UL);
     }
   }
 
