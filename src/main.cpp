@@ -1,937 +1,464 @@
 /*
  * SPDX-License-Identifier: GPL-3.0
  *
- * Copyright (C) 2025 Costin Stroie <costinstroie@eridu.eu.org>
+ * Copyright (C) 2026 Costin Stroie <costinstroie@eridu.eu.org>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
-
-// GxEPD2_HelloWorld.ino by Jean-Marc Zingg
-//
-// Display Library example for SPI e-paper panels from Dalian Good Display and boards from Waveshare.
-// Requires HW SPI and Adafruit_GFX. Caution: the e-paper panels require 3.3V supply AND data lines!
-//
-// Display Library based on Demo Example from Good Display: https://www.good-display.com/companyfile/32/
-//
-// Author: Jean-Marc Zingg
-//
-// Version: see library.properties
-//
-// Library: https://github.com/ZinggJM/GxEPD2
-
-// Supporting Arduino Forum Topics (closed, read only):
-// Good Display ePaper for Arduino: https://forum.arduino.cc/t/good-display-epaper-for-arduino/419657
-// Waveshare e-paper displays with SPI: https://forum.arduino.cc/t/waveshare-e-paper-displays-with-spi/467865
-//
-// Add new topics in https://forum.arduino.cc/c/using-arduino/displays/23 for new questions and issues
-
-// see GxEPD2_wiring_examples.h for wiring suggestions and examples
-// if you use a different wiring, you need to adapt the constructor parameters!
-
-// uncomment next line to use class GFX of library GFX_Root instead of Adafruit_GFX
-//#include <GFX.h>
 
 #include <GxEPD2_BW.h>
 #include <GxEPD2_3C.h>
 #include <GxEPD2_4C.h>
 #include <GxEPD2_7C.h>
-#include <Fonts/FreeMonoBold12pt7b.h>
-#include <TJpg_Decoder.h>
-#include "pbm.h"
+#include <Fonts/FreeSans9pt7b.h>
+#include <Fonts/FreeSansBold9pt7b.h>
+#include <Fonts/FreeSans12pt7b.h>
+#include <Fonts/FreeSansBold24pt7b.h>
 #include "display.h"
 
-// Global variables for GIF processing
-static uint16_t gifWidth, gifHeight;
-static uint8_t* blackBuffer = nullptr;
-static uint8_t* redBuffer = nullptr;
-
-// Forward declarations for helper functions
-/**
- * List all files in SPIFFS and print their names and sizes to Serial
- */
-void listSPIFFSContent();
-
-/**
- * Fetch an image from the configured server URL and display it
- * @return true if successful, false otherwise
- */
-bool fetchAndDisplayImage();
-
-/**
- * Display a GIF file from SPIFFS with 3-color separation
- * @param filename Path to the GIF file in SPIFFS
- * @return true if successful, false otherwise
- */
-bool displayGIFFile(const char* filename);
-
-/**
- * Turn on the built-in LED if configured
- */
-void ledOn();
-
-/**
- * Turn off the built-in LED if configured
- */
-void ledOff();
-
-// Include configuration file (rename config.tpl to config.h)
-#if defined(__has_include)
-  #if __has_include("config.h")
-    #include "config.h"
-    #define CONFIG_LOADED 1
-  #else
-    #define CONFIG_LOADED 0
-  #endif
-#else
-  #define CONFIG_LOADED 0
-#endif
-
-// Include filesystem support
-#if defined(ESP32)
-#include "SPIFFS.h"
-#elif defined(ESP8266)
-#include "FS.h"
-#endif
-
-// Include WiFi support
-#if defined(ESP32)
 #include <WiFi.h>
-#elif defined(ESP8266)
-#include <ESP8266WiFi.h>
-#endif
-
-// Include HTTP client support
-#if defined(ESP32)
 #include <HTTPClient.h>
-#elif defined(ESP8266)
-#include <ESP8266HTTPClient.h>
 #include <WiFiClientSecure.h>
-#endif
+#include <ArduinoJson.h>
+#include "weathericons.h"
+#include "config_manager.h"
+#include "portal.h"
 
-#include <stdlib.h>
+// ---------------------------------------------------------------------------
+// Runtime configuration (loaded from NVS at boot)
+// ---------------------------------------------------------------------------
 
-/**
- * List image files in SPIFFS and display them on the e-paper screen
- */
-void listImageFiles() {
-  Serial.println("Listing image files in SPIFFS...");
-  display.setRotation(1); // Set rotation to match display orientation
-  display.setPartialWindow(0, 0, display.width(), display.height());
-  display.firstPage();
-  do
-  {
-    // Fill background with white
-    display.fillScreen(GxEPD_WHITE);
-    
-    // Display title
-    display.setCursor(20, 30);
-    display.print("Image Files in SPIFFS:");
-    
-    // List image files
-    int yPosition = 50;
-    int fileCount = 0;
-    
-#if defined(ESP32)
-    File root = SPIFFS.open("/");
-    if (root) {
-      File file = root.openNextFile();
-      while (file) {
-        String fileName = file.name();
-        if (fileName.endsWith(".pbm") || fileName.endsWith(".gif")) {
-          Serial.println("Found image file: " + fileName);
-          display.setCursor(20, yPosition);
-          display.print(fileName.c_str());
-          yPosition += 20;
-          fileCount++;
-        }
-        file = root.openNextFile();
-      }
-      root.close();
-    }
-#elif defined(ESP8266)
-    Dir dir = SPIFFS.openDir("/");
-    while (dir.next()) {
-      String fileName = dir.fileName();
-      if (fileName.endsWith(".pbm") || fileName.endsWith(".gif")) {
-        Serial.println("Found image file: " + fileName);
-        display.setCursor(20, yPosition);
-        display.print(fileName.c_str());
-        yPosition += 20;
-        fileCount++;
-      }
-    }
-#endif
-    
-    if (fileCount == 0) {
-      Serial.println("No image files found in SPIFFS");
-      display.setCursor(20, 50);
-      display.print("No image files found");
-    } else {
-      Serial.println("Found " + String(fileCount) + " image files in SPIFFS");
-    }
-  }
-  while (display.nextPage());
+static Config config;
+
+// ---------------------------------------------------------------------------
+// Geolocation cache — survives loop() refresh cycles, reset on deep-sleep wakeup
+// ---------------------------------------------------------------------------
+
+static float cachedLat       = 0.0f;
+static float cachedLon       = 0.0f;
+static long  cachedUtcOffset = 0;
+static bool  geoCached       = false;
+
+// ---------------------------------------------------------------------------
+// Weather state
+// ---------------------------------------------------------------------------
+
+static String   currentLocation    = "";
+static uint16_t currentIconCode    = WI_NA;
+static int      currentWeatherCode = 0;
+static float    currentTempMax     = 0.0f;
+static float    currentTempMin     = 0.0f;
+static float    currentPrecipProb  = 0.0f;
+static char     currentTempUnit    = 'C';
+static char     currentForecastDate[12] = "";  // "DD.MM.YY" from daily.time[0]
+static unsigned long lastWeatherUpdate = 0;
+
+// ---------------------------------------------------------------------------
+// Helpers
+// ---------------------------------------------------------------------------
+
+void ledOn() {
+  if (config.ledPin != -1) digitalWrite(config.ledPin, LOW);   // active-low
 }
 
-/**
- * Clear the entire e-paper display
- */
-void clearDisplay() {
-  display.setRotation(1); // Set rotation to match display orientation
+void ledOff() {
+  if (config.ledPin != -1) digitalWrite(config.ledPin, HIGH);
+}
+
+void ledBlink(int times, int onMs, int offMs) {
+  for (int i = 0; i < times; i++) {
+    ledOn();  delay(onMs);
+    ledOff(); if (i < times - 1) delay(offMs);
+  }
+}
+
+void deepSleep() {
+  if (config.deepSleepMins > 0) {
+    esp_sleep_enable_timer_wakeup((uint64_t)config.deepSleepMins * 60ULL * 1000000ULL);
+    esp_deep_sleep_start();
+  }
+}
+
+bool isSevereWeather(int code) {
+  switch (code) {
+    case 56: case 57:           // freezing drizzle
+    case 66: case 67:           // freezing rain
+    case 75: case 82:           // heavy snow / violent showers
+    case 86:                    // heavy snow showers
+    case 95: case 96: case 99:  // thunderstorm
+      return true;
+    default:
+      return false;
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Display helpers
+// ---------------------------------------------------------------------------
+
+// Show up to three lines of error text, red, vertically centred.
+void displayError(const char* line1, const char* line2 = nullptr, const char* line3 = nullptr) {
+  int lines  = 1 + (line2 ? 1 : 0) + (line3 ? 1 : 0);
+  int lineH  = 22;
+  int startY = (display.height() + lines * lineH) / 2 - (lines - 1) * lineH;
+
+  display.setRotation(1);
   display.setFullWindow();
   display.firstPage();
-  do
-  {
+  do {
     display.fillScreen(GxEPD_WHITE);
-  }
-  while (display.nextPage());
+    display.setFont(&FreeSansBold9pt7b);
+    display.setTextColor(GxEPD_RED);
+    display.setCursor(8, startY);
+    display.print(line1);
+    if (line2) { display.setCursor(8, startY + lineH);     display.print(line2); }
+    if (line3) { display.setCursor(8, startY + lineH * 2); display.print(line3); }
+  } while (display.nextPage());
 }
 
-/**
- * Display "Hello World" message on the e-paper screen
- */
-void displayHelloWorld() {
-  display.setRotation(1); // Set rotation to match display orientation
-  display.setPartialWindow(0, 0, display.width(), display.height());
+// Show the config-portal SSID and instructions on screen.
+void displayPortalInfo(const char* apName) {
+  display.setRotation(1);
+  display.setFullWindow();
   display.firstPage();
-  do
-  {
-    // Fill background with white
+  do {
     display.fillScreen(GxEPD_WHITE);
-    
-    // Display "Hello World" message
-    display.setCursor(20, 50);
-    display.print("Hello World");
-  }
-  while (display.nextPage());
+    display.setTextColor(GxEPD_BLACK);
+
+    display.setFont(&FreeSansBold9pt7b);
+    display.setCursor(8, 20);
+    display.print("Setup mode");
+
+    display.setFont(&FreeSans9pt7b);
+    display.setCursor(8, 42);
+    display.print("Connect to WiFi network:");
+
+    display.setFont(&FreeSansBold9pt7b);
+    display.setTextColor(GxEPD_RED);
+    display.setCursor(8, 64);
+    display.print(apName);
+
+    display.setFont(&FreeSans9pt7b);
+    display.setTextColor(GxEPD_BLACK);
+    display.setCursor(8, 86);
+    display.print("then open  192.168.4.1");
+    display.setCursor(8, 108);
+    display.print("in your browser");
+  } while (display.nextPage());
 }
 
-bool displayRandomImage() {
-  Serial.println("Searching for image files to display...");
-  
-  // Turn on LED if configured
-  ledOn();
-  
-  // Count image files
-  int fileCount = 0;
-  
-#if defined(ESP32)
-  File root = SPIFFS.open("/");
-  if (!root) {
-    Serial.println("Failed to open SPIFFS root directory");
-    return false;
-  }
-  
-  File file = root.openNextFile();
-  while (file) {
-    String fileName = file.name();
-    if (fileName.endsWith(".pbm") || fileName.endsWith(".gif0")) {
-      fileCount++;
-    }
-    file = root.openNextFile();
-  }
-  root.close();
-#elif defined(ESP8266)
-  Dir dir = SPIFFS.openDir("/");
-  while (dir.next()) {
-    String fileName = dir.fileName();
-    if (fileName.endsWith(".pbm") || fileName.endsWith(".gif")) {
-      fileCount++;
-    }
-  }
-#endif
+void displayWeather() {
+  static const int COL = 142;
 
-  if (fileCount == 0) {
-    Serial.println("No image files found for display");
-    return false;
-  }
-  Serial.println("Found " + String(fileCount) + " image files");
+  uint16_t iconColor = isSevereWeather(currentWeatherCode) ? GxEPD_RED : GxEPD_BLACK;
+  bool hot = (currentTempUnit == 'C') ? (currentTempMax >= 30.0f) : (currentTempMax >= 86.0f);
+  uint16_t tempColor = hot ? GxEPD_RED : GxEPD_BLACK;
 
-  // Select a random file
-  int randomIndex = random(fileCount);
-  Serial.println("Selected random file index: " + String(randomIndex));
-  
-#if defined(ESP32)
-  root = SPIFFS.open("/");
-  if (!root) return false;
-  
-  file = root.openNextFile();
-  int currentIndex = 0;
-  String selectedFile;
-  
-  while (file) {
-    String fileName = file.name();
-    if (fileName.endsWith(".pbm") || fileName.endsWith(".gif")) {
-      if (currentIndex == randomIndex) {
-        selectedFile = fileName;
-        break;
-      }
-      currentIndex++;
+  struct tm timeinfo;
+  bool timeOk = getLocalTime(&timeinfo);
+
+  display.setRotation(1);
+  display.setFullWindow();
+  display.firstPage();
+  do {
+    display.fillScreen(GxEPD_WHITE);
+
+    // Icon — left column, baseline y=100 (~96px ascent centres in 128px)
+    display.setFont(WI_FONT);
+    display.drawChar(12, 100, currentIconCode, iconColor, GxEPD_WHITE, 1);
+
+    // Header — city name bold, right-aligned
+    int firstComma = currentLocation.indexOf(',');
+    String city = (firstComma != -1) ? currentLocation.substring(0, firstComma) : currentLocation;
+    display.setFont(&FreeSansBold9pt7b);
+    display.setTextColor(GxEPD_BLACK);
+    int16_t cx, cy; uint16_t cw, ch;
+    display.getTextBounds(city.c_str(), 0, 0, &cx, &cy, &cw, &ch);
+    display.setCursor(display.width() - (int16_t)cw - 2, 16);
+    display.print(city);
+
+    // Max temperature
+    display.setFont(&FreeSansBold24pt7b);
+    display.setTextColor(tempColor);
+    char tempMaxStr[10];
+    snprintf(tempMaxStr, sizeof(tempMaxStr), "%.1f%c", currentTempMax, currentTempUnit);
+    display.setCursor(COL, 58);
+    display.print(tempMaxStr);
+
+    // Min temperature
+    display.setFont(&FreeSans12pt7b);
+    display.setTextColor(GxEPD_BLACK);
+    char tempMinStr[12];
+    snprintf(tempMinStr, sizeof(tempMinStr), "min %.1f%c", currentTempMin, currentTempUnit);
+    display.setCursor(COL, 84);
+    display.print(tempMinStr);
+
+    // Precipitation
+    char precipStr[14];
+    snprintf(precipStr, sizeof(precipStr), "rain %.0f%%", currentPrecipProb);
+    display.setCursor(COL, 108);
+    display.print(precipStr);
+
+    // Footer — SSID | IP | date | time, built-in 6×8 font, centred full width
+    {
+      String ssid = WiFi.SSID();
+      if (ssid.length() > 10) ssid = ssid.substring(0, 10);
+      String ip = WiFi.localIP().toString();
+      char footer[64];
+      bool hasDate = currentForecastDate[0] != '\0';
+      if (hasDate && timeOk)
+        snprintf(footer, sizeof(footer), "%s | %s | %s | %02d:%02d",
+                 ssid.c_str(), ip.c_str(), currentForecastDate,
+                 timeinfo.tm_hour, timeinfo.tm_min);
+      else if (hasDate)
+        snprintf(footer, sizeof(footer), "%s | %s | %s",
+                 ssid.c_str(), ip.c_str(), currentForecastDate);
+      else
+        snprintf(footer, sizeof(footer), "%s | %s", ssid.c_str(), ip.c_str());
+      display.setFont(NULL);
+      display.setTextSize(1);
+      int16_t fx, fy; uint16_t fw, fh;
+      display.getTextBounds(footer, 0, 0, &fx, &fy, &fw, &fh);
+      display.setCursor((display.width() - (int16_t)fw) / 2, 120);
+      display.print(footer);
     }
-    file = root.openNextFile();
-  }
-  root.close();
-  
-  if (selectedFile.isEmpty()) {
-    Serial.println("Failed to select an image file");
+  } while (display.nextPage());
+}
+
+// ---------------------------------------------------------------------------
+// Data fetching
+// ---------------------------------------------------------------------------
+
+bool fetchGeolocation() {
+  Serial.println("Fetching geolocation...");
+  ledOn();  // steady = network busy
+  HTTPClient http;
+  http.begin("http://ip-api.com/json/?fields=status,message,city,regionName,country,lat,lon,offset");
+  int code = http.GET();
+  if (code != HTTP_CODE_OK) {
+    Serial.printf("Geolocation HTTP error: %d\n", code);
+    http.end();
     return false;
   }
-  Serial.println("Selected file: " + selectedFile);
-  
-  // Ensure the file path starts with "/"
-  if (!selectedFile.startsWith("/")) {
-    selectedFile = "/" + selectedFile;
-  }
-  
-  // Check file extension and handle accordingly
-  if (selectedFile.endsWith(".pbm")) {
-    // Open the selected file
-    File pbmFile = SPIFFS.open(selectedFile, "r");
-    if (!pbmFile) {
-      Serial.println("Failed to open file: " + selectedFile);
-      return false;
-    }
-    Serial.println("Successfully opened file: " + selectedFile);
-    
-    // Parse PBM header to get image dimensions
-    int width = 0, height = 0;
-    if (!parsePBMHeader(&pbmFile, width, height)) {
-      Serial.println("Failed to parse PBM header");
-      pbmFile.close();
-      return false;
-    }
-    
-    Serial.println("Image dimensions: " + String(width) + "x" + String(height));
-    
-    // Calculate buffer size (1 bit per pixel)
-    int bufferSize = (width * height + 7) / 8;
-    Serial.println("Allocating buffer of " + String(bufferSize) + " bytes");
-    uint8_t* buffer = (uint8_t*)malloc(bufferSize);
-    
-    if (!buffer) {
-      Serial.println("Failed to allocate memory for image buffer");
-      pbmFile.close();
-      return false;
-    }
-    Serial.println("Successfully allocated image buffer");
-    
-    // Read image data
-    Serial.println("Reading image data...");
-    if (!readPBMData(&pbmFile, buffer, width, height)) {
-      Serial.println("Failed to read PBM data");
-      pbmFile.close();
-      free(buffer);
-      return false;
-    }
-    pbmFile.close();
-    Serial.println("Successfully read image data");
-    
-    // Display the image
-    Serial.println("Displaying image on e-paper...");
-    display.setRotation(1);
-    display.setPartialWindow(0, 0, width, height);
-    display.firstPage();
-    do
-    {
-      display.fillScreen(GxEPD_WHITE);
-      display.drawBitmap(0, 0, buffer, width, height, GxEPD_BLACK);
-    }
-    while (display.nextPage());
-    Serial.println("Image displayed successfully");
-    
-    free(buffer);
-    return true;
-  } else if (selectedFile.endsWith(".gif")) {
-    // Handle GIF file
-    Serial.println("Displaying GIF file: " + selectedFile);
-    
-    if (displayGIFFile(selectedFile.c_str())) {
-      Serial.println("GIF displayed successfully");
-      return true;
-    } else {
-      Serial.println("Failed to display GIF");
-      return false;
-    }
-  }
-  
-#elif defined(ESP8266)
-  dir = SPIFFS.openDir("/");
-  int currentIndex = 0;
-  String selectedFile;
-  
-  while (dir.next()) {
-    String fileName = dir.fileName();
-    if (fileName.endsWith(".pbm") || fileName.endsWith(".gif")) {
-      if (currentIndex == randomIndex) {
-        selectedFile = fileName;
-        break;
-      }
-      currentIndex++;
-    }
-  }
-  
-  if (selectedFile.isEmpty()) {
-    Serial.println("Failed to select an image file");
+
+  JsonDocument doc;
+  DeserializationError err = deserializeJson(doc, http.getStream());
+  http.end();
+
+  if (err || doc["status"] != "success") {
+    Serial.println("Geolocation parse/API error");
+    ledOff();
     return false;
   }
-  Serial.println("Selected file: " + selectedFile);
-  
-  // Check file extension and handle accordingly
-  if (selectedFile.endsWith(".pbm")) {
-    // Open the selected file
-    File pbmFile = SPIFFS.open(selectedFile, "r");
-    if (!pbmFile) {
-      Serial.println("Failed to open file: " + selectedFile);
-      return false;
-    }
-    Serial.println("Successfully opened file: " + selectedFile);
-    
-    // Parse PBM header to get image dimensions
-    int width = 0, height = 0;
-    if (!parsePBMHeader(&pbmFile, width, height)) {
-      Serial.println("Failed to parse PBM header");
-      pbmFile.close();
-      return false;
-    }
-    
-    Serial.println("Image dimensions: " + String(width) + "x" + String(height));
-    
-    // Calculate buffer size (1 bit per pixel)
-    int bufferSize = (width * height + 7) / 8;
-    Serial.println("Allocating buffer of " + String(bufferSize) + " bytes");
-    uint8_t* buffer = (uint8_t*)malloc(bufferSize);
-    
-    if (!buffer) {
-      Serial.println("Failed to allocate memory for image buffer");
-      pbmFile.close();
-      return false;
-    }
-    Serial.println("Successfully allocated image buffer");
-    
-    // Read image data
-    Serial.println("Reading image data...");
-    if (!readPBMData(&pbmFile, buffer, width, height)) {
-      Serial.println("Failed to read PBM data");
-      pbmFile.close();
-      free(buffer);
-      return false;
-    }
-    pbmFile.close();
-    Serial.println("Successfully read image data");
-    
-    // Display the image
-    Serial.println("Displaying image on e-paper...");
-    display.setRotation(1);
-    display.setPartialWindow(0, 0, width, height);
-    display.firstPage();
-    do
-    {
-      display.fillScreen(GxEPD_WHITE);
-      display.drawBitmap(0, 0, buffer, width, height, GxEPD_BLACK);
-    }
-    while (display.nextPage());
-    Serial.println("Image displayed successfully");
-    
-    free(buffer);
-    return true;
-  } else if (selectedFile.endsWith(".gif")) {
-    // Handle GIF file
-    Serial.println("Displaying GIF file: " + selectedFile);
-    
-    if (displayGIFFile(selectedFile.c_str())) {
-      Serial.println("GIF displayed successfully");
-      return true;
-    } else {
-      Serial.println("Failed to display GIF");
-      return false;
-    }
-  }
-#endif
-  
-  // Add a default return statement to avoid compiler warning
-  // Turn off LED
+
+  currentLocation = String(doc["city"].as<const char*>()) + ", " +
+                    String(doc["regionName"].as<const char*>()) + ", " +
+                    String(doc["country"].as<const char*>());
+  cachedLat       = doc["lat"].as<float>();
+  cachedLon       = doc["lon"].as<float>();
+  cachedUtcOffset = doc["offset"].as<long>();
+
+  Serial.printf("Location: %s  (%.4f, %.4f)  UTC+%lds\n",
+                currentLocation.c_str(), cachedLat, cachedLon, cachedUtcOffset);
   ledOff();
-  
-  return false;
+  return true;
 }
 
-/**
- * Setup function - initializes the system, connects to WiFi, mounts SPIFFS,
- * and displays an image (either from server or SPIFFS)
- */
+void syncNTP() {
+  configTime(cachedUtcOffset, 0, "pool.ntp.org", "time.nist.gov");
+  Serial.print("NTP sync");
+  struct tm t;
+  int tries = 0;
+  while (!getLocalTime(&t) && tries++ < 20) {
+    ledOn(); delay(100); ledOff(); delay(400);  // fast blink = waiting for NTP
+    Serial.print(".");
+  }
+  ledOff();
+  Serial.println();
+  if (tries < 20)
+    Serial.printf("Time: %04d-%02d-%02d %02d:%02d:%02d\n",
+                  1900 + t.tm_year, t.tm_mon + 1, t.tm_mday,
+                  t.tm_hour, t.tm_min, t.tm_sec);
+  else
+    Serial.println("NTP sync failed");
+}
+
+bool fetchWeatherData() {
+  Serial.printf("Fetching weather for (%.4f, %.4f)...\n", cachedLat, cachedLon);
+  ledOn();  // steady = network busy
+
+  String url = "https://api.open-meteo.com/v1/forecast"
+               "?latitude="  + String(cachedLat, 4) +
+               "&longitude=" + String(cachedLon, 4) +
+               "&daily=weather_code,temperature_2m_max,temperature_2m_min"
+               ",precipitation_probability_max"
+               "&timezone=auto&forecast_days=" + String(config.forecastDays) +
+               (config.tempUnits == 0
+                 ? "&temperature_unit=fahrenheit&wind_speed_unit=mph&precipitation_unit=inch"
+                 : "&temperature_unit=celsius&wind_speed_unit=kmh&precipitation_unit=mm");
+
+  HTTPClient http;
+  http.begin(url);
+  int code = http.GET();
+  if (code != HTTP_CODE_OK) {
+    Serial.printf("Weather HTTP error: %d\n", code);
+    http.end();
+    ledOff();
+    return false;
+  }
+
+  String payload = http.getString();
+  http.end();
+
+  JsonDocument doc;
+  DeserializationError err = deserializeJson(doc, payload);
+  if (err) {
+    Serial.printf("Weather JSON error: %s\n", err.c_str());
+    ledOff();
+    return false;
+  }
+  ledOff();
+
+  currentWeatherCode = doc["daily"]["weather_code"][0];
+  currentTempMax     = doc["daily"]["temperature_2m_max"][0];
+  currentTempMin     = doc["daily"]["temperature_2m_min"][0];
+  currentPrecipProb  = doc["daily"]["precipitation_probability_max"][0];
+  currentIconCode    = getIconCode(currentWeatherCode);
+  currentTempUnit    = (config.tempUnits == 0) ? 'F' : 'C';
+
+  // Parse "YYYY-MM-DD" → "DD.MM.YY"
+  const char* dateStr = doc["daily"]["time"][0];
+  if (dateStr && strlen(dateStr) == 10)
+    snprintf(currentForecastDate, sizeof(currentForecastDate),
+             "%c%c.%c%c.%c%c",
+             dateStr[8], dateStr[9],   // DD
+             dateStr[5], dateStr[6],   // MM
+             dateStr[2], dateStr[3]);  // YY
+
+  Serial.printf("WMO %d  %.1f/%.1f%c  precip %.0f%%\n",
+                currentWeatherCode, currentTempMax, currentTempMin,
+                currentTempUnit, currentPrecipProb);
+  return true;
+}
+
+// Geo + NTP on first call only; weather every call.
+bool updateWeatherData() {
+  if (!geoCached) {
+    if (!fetchGeolocation()) return false;
+    syncNTP();
+    geoCached = true;
+  }
+  if (!fetchWeatherData()) return false;
+  lastWeatherUpdate = millis();
+  return true;
+}
+
+// ---------------------------------------------------------------------------
+// Arduino entry points
+// ---------------------------------------------------------------------------
+
 void setup() {
   Serial.begin(115200);
-  // Initialize random seed with better entropy
-#if defined(ESP32)
   randomSeed(esp_random());
-#elif defined(ESP8266)
-  randomSeed(RANDOM_REG32);
-#else
-  randomSeed(analogRead(0));
-#endif
-  
-#if CONFIG_LOADED
+
+  ConfigManager::load(config);
+
+  display.init(115200, true, 2, false);
+
+  // Init hardware pins from config
+  if (config.ledPin != -1)    { pinMode(config.ledPin,    OUTPUT);       ledOff(); }
+  if (config.buttonPin != -1) { pinMode(config.buttonPin, INPUT_PULLUP);           }
+
+  // Build AP name from MAC (used for both portal trigger check and portal itself)
+  uint8_t mac[6];
+  WiFi.macAddress(mac);
+  char apName[24];
+  snprintf(apName, sizeof(apName), "InkCast-%02X%02X", mac[4], mac[5]);
+
+  // Enter config portal if: no WiFi credentials saved, or button held at boot
+  bool forcePortal = (config.buttonPin != -1 && digitalRead(config.buttonPin) == LOW);
+  if (!ConfigManager::isConfigured() || forcePortal) {
+    displayPortalInfo(apName);
+    display.hibernate();
+    ledOn();                          // steady = portal active
+    runConfigPortal(config, apName);  // blocks until reboot
+    return;
+  }
+
   // Connect to WiFi
-  Serial.println("Connecting to WiFi...");
-  WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
-  Serial.print("Connecting");
-  int attempts = 0;
-  while (WiFi.status() != WL_CONNECTED && attempts < 20) {
-    delay(500);
+  Serial.printf("Connecting to %s", config.wifiSsid);
+  WiFi.begin(config.wifiSsid, config.wifiPassword);
+  int tries = 0;
+  while (WiFi.status() != WL_CONNECTED && tries++ < 20) {
+    ledOn(); delay(250); ledOff(); delay(250);  // slow blink = connecting
     Serial.print(".");
-    attempts++;
   }
   Serial.println();
-  
+
   if (WiFi.status() != WL_CONNECTED) {
-    Serial.println("Failed to connect to WiFi");
-    // Display WiFi error with technical font
-    display.setRotation(1);
-    display.setFullWindow();
-    display.firstPage();
-    do
-    {
-      display.fillScreen(GxEPD_WHITE);
-      display.setFont(&FreeMonoBold12pt7b);
-      display.setCursor(20, 50);
-      display.print("WiFi Connection Failed");
-    }
-    while (display.nextPage());
+    ledBlink(3, 300, 200);  // 3 long flashes = error
+    displayError("WiFi failed", config.wifiSsid);
     display.hibernate();
-#if defined(ESP8266)
-    // Go to deep sleep
-    ESP.deepSleep(0); 
-#endif
+    deepSleep();
     return;
   }
-  
-  Serial.println("Connected to WiFi");
-  Serial.print("IP Address: ");
-  Serial.println(WiFi.localIP());
-#else
-  Serial.println("Configuration file not found. Please rename src/config.tpl to src/config.h and update with your settings.");
-  // Display config error with technical font
-  display.setRotation(1);
-  display.setFullWindow();
-  display.firstPage();
-  do
-  {
-    display.fillScreen(GxEPD_WHITE);
-    display.setFont(&FreeMonoBold12pt7b);
-    display.setCursor(20, 30);
-    display.print("Config File Missing");
-    display.setCursor(20, 60);
-    display.print("Rename config.tpl");
-    display.setCursor(20, 90);
-    display.print("to config.h and");
-    display.setCursor(20, 120);
-    display.print("update settings");
-  }
-  while (display.nextPage());
-  display.hibernate();
-#if defined(ESP8266)
-  // Go to deep sleep
-  ESP.deepSleep(0); 
-#endif
-  return;
-#endif
-  
-  // default 10ms reset pulse, e.g. for bare panels with DESPI-C02
-  //display.init(115200); 
-  // USE THIS for Waveshare boards with "clever" reset circuit, 2ms reset pulse
-  display.init(115200, true, 2, false);
-  
-  // Initialize SPIFFS
-#if defined(ESP32)
-  Serial.println("Mounting SPIFFS...");
-  if (!SPIFFS.begin(true)) {
-#elif defined(ESP8266)
-  Serial.println("Mounting SPIFFS...");
-  if (!SPIFFS.begin()) {
-#endif
-    Serial.println("Failed to mount SPIFFS");
-    // Display SPIFFS error with technical font
-    display.setRotation(1);
-    display.setFullWindow();
-    display.firstPage();
-    do
-    {
-      display.fillScreen(GxEPD_WHITE);
-      display.setFont(&FreeMonoBold12pt7b);
-      display.setCursor(20, 50);
-      display.print("SPIFFS Mount Failed");
-    }
-    while (display.nextPage());
-    display.hibernate();
-#if defined(ESP8266)
-    // Go to deep sleep
-    ESP.deepSleep(0); 
-#endif
-    return;
-  }
-  Serial.println("SPIFFS mounted successfully");
-  
-  // List all files in SPIFFS
-  Serial.println("SPIFFS content:");
-  listSPIFFSContent();
-  Serial.println("End of SPIFFS content");
-  
-  // Initialize LED pin if configured
-#if CONFIG_LOADED && defined(LED_PIN) && LED_PIN != -1
-  pinMode(LED_PIN, OUTPUT);
-  ledOff(); // Start with LED off
-#endif
-  
-  // First try to fetch and display image from server
-  Serial.println("Attempting to fetch image from server...");
-  if (!fetchAndDisplayImage()) {
-    // If server fetch fails, try to display a random image file from SPIFFS
-    Serial.println("Server fetch failed, attempting to display a random image file from SPIFFS...");
-    if (!displayRandomImage()) {
-      // If no image files found, display instructions
-      Serial.println("No image files found in SPIFFS, displaying instructions...");
-      display.setRotation(1);
-      display.setFullWindow();
-      display.firstPage();
-      do
-      {
-        display.fillScreen(GxEPD_WHITE);
-        display.setFont(&FreeMonoBold12pt7b);
-        display.setCursor(20, 30);
-        display.print("No Image Files Found");
-        display.setCursor(20, 60);
-        display.print("Please add image files");
-        display.setCursor(20, 90);
-        display.print("to SPIFFS or check");
-        display.setCursor(20, 120);
-        display.print("server connectivity");
-      }
-      while (display.nextPage());
-    }
-  }
-  display.hibernate();
-  
-#if defined(ESP8266) || defined(ESP32)
-  // Go to deep sleep
-#if CONFIG_LOADED
-  if (DEEP_SLEEP_DURATION != -1) {
-#if defined(ESP8266)
-    ESP.deepSleep(DEEP_SLEEP_DURATION); 
-#elif defined(ESP32)
-    esp_sleep_enable_timer_wakeup(DEEP_SLEEP_DURATION);
-    esp_deep_sleep_start();
-#endif
-  }
-#else
-#if defined(ESP8266)
-  ESP.deepSleep(0); 
-#elif defined(ESP32)
-  esp_deep_sleep_start();
-#endif
-#endif
-#endif
-}
+  Serial.printf("WiFi OK — %s\n", WiFi.localIP().toString().c_str());
 
-/**
- * Helper function to list SPIFFS content
- * Prints file names and sizes to Serial
- */
-void listSPIFFSContent() {
-#if defined(ESP32)
-  File root = SPIFFS.open("/");
-  if (root) {
-    File file = root.openNextFile();
-    while (file) {
-      Serial.print("File: ");
-      Serial.print(file.name());
-      Serial.print(" Size: ");
-      Serial.println(file.size());
-      file = root.openNextFile();
-    }
-    root.close();
-  }
-#elif defined(ESP8266)
-  Dir dir = SPIFFS.openDir("/");
-  while (dir.next()) {
-    Serial.print("File: ");
-    Serial.print(dir.fileName());
-    Serial.print(" Size: ");
-    File f = SPIFFS.open(dir.fileName(), "r");
-    if (f) {
-      Serial.println(f.size());
-      f.close();
-    } else {
-      Serial.println("Unknown");
-    }
-  }
-#endif
-}
+  // Start background config server so settings are always reachable
+  if (config.deepSleepMins == -1)
+    startConfigServer(config);
 
-/**
- * Helper function to fetch and display image from server
- * Downloads a PBM image from the configured URL and displays it
- * @return true if successful, false otherwise
- */
-bool fetchAndDisplayImage() {
-#if CONFIG_LOADED
-  Serial.println("Fetching image from server...");
-  
-  // Turn on LED if configured
-  ledOn();
-  
-#if defined(ESP32)
-  HTTPClient http;
-  http.begin(SERVER_URL);
-  int httpCode = http.GET();
-#elif defined(ESP8266)
-  WiFiClientSecure client;
-  client.setInsecure(); // Skip certificate verification for simplicity
-  
-  HTTPClient http;
-  http.begin(client, SERVER_URL);
-  int httpCode = http.GET();
-#endif
-
-  if (httpCode == HTTP_CODE_OK) {
-    Serial.println("Image downloaded successfully");
-    WiFiClient *stream = http.getStreamPtr();
-    
-    // Parse PBM header to get image dimensions
-    int width = 0, height = 0;
-    if (!parsePBMHeader(stream, width, height)) {
-      Serial.println("Failed to parse PBM header from server");
-      http.end();
-      return false;
-    }
-    Serial.println("Image dimensions: " + String(width) + "x" + String(height));
-    
-    // Calculate buffer size (1 bit per pixel)
-    int bufferSize = (width * height + 7) / 8;
-    Serial.println("Allocating buffer of " + String(bufferSize) + " bytes");
-    uint8_t* buffer = (uint8_t*)malloc(bufferSize);
-    
-    if (buffer) {
-      // Read image data
-      if (readPBMData(stream, buffer, width, height)) {
-        // Invert the buffer data for correct display (PBM format: 0=white, 1=black)
-        for (int i = 0; i < bufferSize; i++) {
-          buffer[i] = ~buffer[i];
-        }
-        
-        // Display the image
-        display.setRotation(1);
-        display.setPartialWindow(0, 0, width, height);
-        display.firstPage();
-        do
-        {
-          display.fillScreen(GxEPD_WHITE);
-          display.drawBitmap(0, 0, buffer, width, height, GxEPD_BLACK);
-        }
-        while (display.nextPage());
-        
-        Serial.println("Image displayed successfully");
-        free(buffer);
-        http.end();
-        return true;
-      } else {
-        Serial.println("Failed to read PBM data from server");
-      }
-      free(buffer);
-    } else {
-      Serial.println("Failed to allocate memory for image buffer");
-    }
+  if (updateWeatherData()) {
+    ledBlink(2, 80, 80);    // 2 short flashes = success
+    displayWeather();
   } else {
-    Serial.println("HTTP request failed with code: " + String(httpCode));
+    ledBlink(3, 300, 200);  // 3 long flashes = error
+    displayError("Weather unavailable");
   }
-  http.end();
-  
-  // Turn off LED
-  ledOff();
-  
-  return false;
-#else // CONFIG_LOADED
-  Serial.println("Configuration not loaded, cannot fetch image from server");
-  return false;
-#endif // CONFIG_LOADED
+
+  display.hibernate();
+  deepSleep();
 }
 
-/**
- * Callback function for TJpg_Decoder
- * Processes pixels into black/white and red buffers for 3-color display
- * @param x X coordinate of the pixel block
- * @param y Y coordinate of the pixel block
- * @param w Width of the pixel block
- * @param h Height of the pixel block
- * @param bitmap Pointer to the pixel data
- * @return true to continue processing, false to abort
- */
-bool jpegDrawCallback(int16_t x, int16_t y, uint16_t w, uint16_t h, uint16_t* bitmap) {
-  // Process pixels into black/white and red buffers
-  for (uint16_t i = 0; i < w; i++) {
-    for (uint16_t j = 0; j < h; j++) {
-      uint16_t color = bitmap[j * w + i];
-      uint16_t pixelX = x + i;
-      uint16_t pixelY = y + j;
-      
-      // Check if pixel is within bounds
-      if (pixelX < gifWidth && pixelY < gifHeight) {
-        // Calculate byte and bit position
-        uint32_t pixelIndex = pixelY * gifWidth + pixelX;
-        uint32_t byteIndex = pixelIndex / 8;
-        uint8_t bitIndex = 7 - (pixelIndex % 8);
-        
-        // Simple color classification for 3-color display:
-        // Red-ish colors go to red buffer, dark colors go to black buffer, light colors stay white
-        if ((color & 0xF800) > 0x8000 && (color & 0x07E0) < 0x0400 && (color & 0x001F) < 0x0010) {
-          // Red-ish color - set red buffer bit
-          if (redBuffer) redBuffer[byteIndex] |= (1 << bitIndex);
-        } else if ((color & 0xF800) < 0x2000 && (color & 0x07E0) < 0x0200 && (color & 0x001F) < 0x0008) {
-          // Dark color - set black buffer bit
-          if (blackBuffer) blackBuffer[byteIndex] |= (1 << bitIndex);
-        }
-        // Light colors remain white (both buffers bit = 0)
-      }
-    }
-  }
-  return true;
-}
-
-/**
- * Display GIF file using TJpg_Decoder
- * Decodes a GIF file and displays it with 3-color separation
- * @param filename Path to the GIF file in SPIFFS
- * @return true if successful, false otherwise
- */
-bool displayGIFFile(const char* filename) {
-  // Initialize TJpg_Decoder
-  TJpgDec.setSwapBytes(true);
-  TJpgDec.setCallback(jpegDrawCallback);
-  
-  // GIFs are always expected to be 296x128
-  gifWidth = 296;
-  gifHeight = 128;
-  
-  Serial.println("GIF expected dimensions: " + String(gifWidth) + "x" + String(gifHeight));
-  Serial.println("Display dimensions: 296x128");
-  
-  // Allocate two buffers for black/white and red layers
-  blackBuffer = (uint8_t*)calloc((gifWidth * gifHeight + 7) / 8, sizeof(uint8_t));
-  redBuffer = (uint8_t*)calloc((gifWidth * gifHeight + 7) / 8, sizeof(uint8_t));
-  
-  if (!blackBuffer || !redBuffer) {
-    Serial.println("Failed to allocate memory for GIF buffers");
-    if (blackBuffer) free(blackBuffer);
-    if (redBuffer) free(redBuffer);
-    blackBuffer = nullptr;
-    redBuffer = nullptr;
-    return false;
-  }
-  
-  Serial.println("Allocated buffers for " + String(gifWidth) + "x" + String(gifHeight) + 
-                 " image (" + String((gifWidth * gifHeight + 7) / 8) + " bytes each)");
-  
-  // Decode the GIF to fill the buffers
-  Serial.println("Decoding GIF...");
-  TJpgDec.drawFsJpg(0, 0, filename, SPIFFS);
-  
-  // Display the black layer first
-  Serial.println("Displaying black layer...");
-  display.setRotation(1);
-  display.setPartialWindow(0, 0, gifWidth, gifHeight);
-  display.firstPage();
-  do
-  {
-    display.fillScreen(GxEPD_WHITE);
-    display.drawBitmap(0, 0, blackBuffer, gifWidth, gifHeight, GxEPD_BLACK);
-  }
-  while (display.nextPage());
-  
-  // Display the red layer on top
-  Serial.println("Displaying red layer...");
-  display.firstPage();
-  do
-  {
-    display.drawBitmap(0, 0, redBuffer, gifWidth, gifHeight, GxEPD_RED);
-  }
-  while (display.nextPage());
-  
-  // Free allocated memory
-  free(blackBuffer);
-  free(redBuffer);
-  blackBuffer = nullptr;
-  redBuffer = nullptr;
-  
-  Serial.println("GIF displayed successfully with 3-color separation");
-  
-  return true;
-}
-
-/**
- * Turn on the built-in LED if configured (active low)
- */
-void ledOn() {
-#if defined(LED_PIN) && LED_PIN != -1
-  digitalWrite(LED_PIN, LOW);
-#endif
-}
-
-/**
- * Turn off the built-in LED if configured (active low)
- */
-void ledOff() {
-#if defined(LED_PIN) && LED_PIN != -1
-  digitalWrite(LED_PIN, HIGH);
-#endif
-}
-
-/**
- * Main loop function - handles button presses when deep sleep is disabled
- */
 void loop() {
-#if CONFIG_LOADED && defined(DEEP_SLEEP_DURATION) && DEEP_SLEEP_DURATION == -1 && defined(BUTTON_PIN) && BUTTON_PIN != -1
-  // Check if button is pressed (active low)
-  if (digitalRead(BUTTON_PIN) == LOW) {
-    Serial.println("Button pressed, fetching new image...");
-    
-    // Debounce delay
-    delay(50);
-    
-    // Wait for button release
-    while (digitalRead(BUTTON_PIN) == LOW) {
-      delay(10);
-    }
-    
-    // Try to fetch and display new image
-    if (!fetchAndDisplayImage()) {
-      // If server fetch fails, try to display a random image file from SPIFFS
-      if (!displayRandomImage()) {
-        // If no image files found, display error
-        display.setRotation(1);
-        display.setFullWindow();
-        display.firstPage();
-        do {
-          display.fillScreen(GxEPD_WHITE);
-          display.setFont(&FreeMonoBold12pt7b);
-          display.setCursor(20, 50);
-          display.print("No Images Available");
-        } while (display.nextPage());
-      }
-    }
+  // Only reached when deep sleep is disabled (deepSleepMins == -1)
+
+  handleConfigServer();
+
+  // Periodic weather refresh
+  unsigned long interval = (unsigned long)config.updateInterval * 60UL * 1000UL;
+  if (millis() - lastWeatherUpdate > interval) {
+    if (updateWeatherData())
+      displayWeather();
     display.hibernate();
   }
-  
-  // Small delay to prevent excessive CPU usage
+
+  // Button: re-enter config portal or force an immediate refresh
+  if (config.buttonPin != -1 && digitalRead(config.buttonPin) == LOW) {
+    delay(50);
+    unsigned long held = millis();
+    while (digitalRead(config.buttonPin) == LOW) {
+      delay(10);
+      // Hold for 5 s → enter config portal
+      if (millis() - held > 5000) {
+        uint8_t mac[6];
+        WiFi.macAddress(mac);
+        char apName[24];
+        snprintf(apName, sizeof(apName), "InkCast-%02X%02X", mac[4], mac[5]);
+        displayPortalInfo(apName);
+        display.hibernate();
+        runConfigPortal(config, apName);
+        return;
+      }
+    }
+    // Short press → immediate refresh
+    if (updateWeatherData())
+      displayWeather();
+    display.hibernate();
+  }
+
   delay(100);
-#endif
 }
