@@ -1,5 +1,7 @@
 # InkCast
 
+![InkCast display showing Bucharest weather](docs/display.jpg)
+
 A self-contained weather display for a 2.9" tri-color e-paper panel, running on an ESP32-C3. It fetches weather data and geolocation automatically, shows today's forecast with a weather icon, temperatures, precipitation probability, and a status footer. All settings are configured at runtime through a browser-based portal — no recompilation needed.
 
 ## Features
