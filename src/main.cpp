@@ -112,7 +112,7 @@ bool isSevereWeather(int code) {
 String getGeolocation() {
   Serial.println("Fetching geolocation data from ip-api.com...");
   HTTPClient http;
-  String url = "http://ip-api.com/json/?fields=status,message,country,countryCode,region,regionName,city,zip,lat,lon,timezone";
+  String url = "http://ip-api.com/json/?fields=status,message,country,countryCode,region,regionName,city,zip,lat,lon,timezone,offset";
 
   Serial.print("Connecting to: ");
   Serial.println(url);
@@ -136,18 +136,17 @@ String getGeolocation() {
         String location = String(doc["city"].as<const char*>()) + ", " +
                          String(doc["regionName"].as<const char*>()) + ", " +
                          String(doc["country"].as<const char*>());
-        String lat = String(doc["lat"].as<float>());
-        String lon = String(doc["lon"].as<float>());
+        String lat    = String(doc["lat"].as<float>());
+        String lon    = String(doc["lon"].as<float>());
+        long   offset = doc["offset"].as<long>();
 
         Serial.print("Geolocation: ");
         Serial.println(location);
-        Serial.print("Coordinates: ");
-        Serial.print(lat);
-        Serial.print(", ");
-        Serial.println(lon);
+        Serial.printf("Coordinates: %s, %s  UTC offset: %ld s\n",
+                      lat.c_str(), lon.c_str(), offset);
 
         http.end();
-        return location + "|" + lat + "|" + lon;
+        return location + "|" + lat + "|" + lon + "|" + String(offset);
       } else {
         Serial.print("Geolocation API error: ");
         Serial.println(doc["message"].as<const char*>());
@@ -225,17 +224,36 @@ void updateWeatherData() {
     return;
   }
 
-  int firstPipe = geoData.indexOf('|');
+  int firstPipe  = geoData.indexOf('|');
   int secondPipe = geoData.indexOf('|', firstPipe + 1);
+  int thirdPipe  = geoData.indexOf('|', secondPipe + 1);
 
-  if (firstPipe == -1 || secondPipe == -1) {
+  if (firstPipe == -1 || secondPipe == -1 || thirdPipe == -1) {
     Serial.println("Invalid geolocation data format");
     return;
   }
 
   currentLocation = geoData.substring(0, firstPipe);
-  float lat = geoData.substring(firstPipe + 1, secondPipe).toFloat();
-  float lon = geoData.substring(secondPipe + 1).toFloat();
+  float lat       = geoData.substring(firstPipe + 1, secondPipe).toFloat();
+  float lon       = geoData.substring(secondPipe + 1, thirdPipe).toFloat();
+  long  utcOffset = geoData.substring(thirdPipe + 1).toInt();
+
+  // Sync NTP using the local UTC offset (ip-api returns current offset incl. DST)
+  configTime(utcOffset, 0, "pool.ntp.org", "time.nist.gov");
+  Serial.print("Waiting for NTP sync");
+  struct tm timeinfo;
+  int attempts = 0;
+  while (!getLocalTime(&timeinfo) && attempts++ < 20) {
+    delay(500);
+    Serial.print(".");
+  }
+  Serial.println();
+  if (attempts < 20)
+    Serial.printf("Time synced: %04d-%02d-%02d %02d:%02d:%02d\n",
+                  1900 + timeinfo.tm_year, timeinfo.tm_mon + 1, timeinfo.tm_mday,
+                  timeinfo.tm_hour, timeinfo.tm_min, timeinfo.tm_sec);
+  else
+    Serial.println("NTP sync failed");
 
   String weatherData = getWeatherData(lat, lon);
   if (weatherData == "") {
@@ -290,8 +308,13 @@ void displayWeather() {
     display.setCursor(2, 18);
     display.print(city);
 
+    struct tm timeinfo;
+    bool timeOk = getLocalTime(&timeinfo);
     char ts[6];
-    snprintf(ts, sizeof(ts), "%02d:%02d", hour(), minute());
+    if (timeOk)
+      snprintf(ts, sizeof(ts), "%02d:%02d", timeinfo.tm_hour, timeinfo.tm_min);
+    else
+      snprintf(ts, sizeof(ts), "--:--");
     int16_t tx, ty; uint16_t tw, th;
     display.getTextBounds(ts, 0, 0, &tx, &ty, &tw, &th);
     display.setCursor(display.width() - (int16_t)tw - 2, 18);
@@ -335,8 +358,12 @@ void displayWeather() {
     static const char* monNames[] = {"Jan","Feb","Mar","Apr","May","Jun",
                                      "Jul","Aug","Sep","Oct","Nov","Dec"};
     char dateStr[20];
-    snprintf(dateStr, sizeof(dateStr), "%s %d %s %d",
-             dayNames[weekday() - 1], day(), monNames[month() - 1], year());
+    if (timeOk)
+      snprintf(dateStr, sizeof(dateStr), "%s %d %s %d",
+               dayNames[timeinfo.tm_wday], timeinfo.tm_mday,
+               monNames[timeinfo.tm_mon], 1900 + timeinfo.tm_year);
+    else
+      dateStr[0] = '\0';
     display.setFont(&FreeSans9pt7b);
     display.setTextColor(GxEPD_BLACK);
     display.setCursor(2, 122);
