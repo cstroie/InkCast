@@ -53,6 +53,7 @@ static float    currentTempMax     = 0.0f;
 static float    currentTempMin     = 0.0f;
 static float    currentPrecipProb  = 0.0f;
 static char     currentTempUnit    = 'C';
+static char     currentForecastDate[12] = "";  // "DD.MM.YY" from daily.time[0]
 static unsigned long lastWeatherUpdate = 0;
 
 // ---------------------------------------------------------------------------
@@ -201,17 +202,27 @@ void displayWeather() {
     display.setCursor(COL, 108);
     display.print(precipStr);
 
-    // Footer — date + time, built-in 6×8 font, centred in text column
-    if (timeOk) {
-      char footer[22];
-      snprintf(footer, sizeof(footer), "%02d.%02d.%04d %02d:%02d",
-               timeinfo.tm_mday, timeinfo.tm_mon + 1, 1900 + timeinfo.tm_year,
-               timeinfo.tm_hour, timeinfo.tm_min);
+    // Footer — SSID | IP | date | time, built-in 6×8 font, centred full width
+    {
+      String ssid = WiFi.SSID();
+      if (ssid.length() > 10) ssid = ssid.substring(0, 10);
+      String ip = WiFi.localIP().toString();
+      char footer[64];
+      bool hasDate = currentForecastDate[0] != '\0';
+      if (hasDate && timeOk)
+        snprintf(footer, sizeof(footer), "%s | %s | %s | %02d:%02d",
+                 ssid.c_str(), ip.c_str(), currentForecastDate,
+                 timeinfo.tm_hour, timeinfo.tm_min);
+      else if (hasDate)
+        snprintf(footer, sizeof(footer), "%s | %s | %s",
+                 ssid.c_str(), ip.c_str(), currentForecastDate);
+      else
+        snprintf(footer, sizeof(footer), "%s | %s", ssid.c_str(), ip.c_str());
       display.setFont(NULL);
       display.setTextSize(1);
       int16_t fx, fy; uint16_t fw, fh;
       display.getTextBounds(footer, 0, 0, &fx, &fy, &fw, &fh);
-      display.setCursor(COL + (display.width() - COL - (int16_t)fw) / 2, 120);
+      display.setCursor((display.width() - (int16_t)fw) / 2, 120);
       display.print(footer);
     }
   } while (display.nextPage());
@@ -317,6 +328,15 @@ bool fetchWeatherData() {
   currentPrecipProb  = doc["daily"]["precipitation_probability_max"][0];
   currentIconCode    = getIconCode(currentWeatherCode);
   currentTempUnit    = (config.tempUnits == 0) ? 'F' : 'C';
+
+  // Parse "YYYY-MM-DD" → "DD.MM.YY"
+  const char* dateStr = doc["daily"]["time"][0];
+  if (dateStr && strlen(dateStr) == 10)
+    snprintf(currentForecastDate, sizeof(currentForecastDate),
+             "%c%c.%c%c.%c%c",
+             dateStr[8], dateStr[9],   // DD
+             dateStr[5], dateStr[6],   // MM
+             dateStr[2], dateStr[3]);  // YY
 
   Serial.printf("WMO %d  %.1f/%.1f%c  precip %.0f%%\n",
                 currentWeatherCode, currentTempMax, currentTempMin,
