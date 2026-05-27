@@ -37,20 +37,28 @@ static Config config;
 // Deep-sleep retry counter — survives deep sleep via RTC memory
 // ---------------------------------------------------------------------------
 
-RTC_DATA_ATTR static int fetchRetryIndex = 0;
+RTC_DATA_ATTR static int    fetchRetryIndex = 0;
 
 // Progressive retry schedule in minutes (last entry is the cap)
 static const int retrySchedule[]  = {1, 2, 3, 4, 5, 10, 15};
 static const int retryScheduleLen = (int)(sizeof(retrySchedule) / sizeof(retrySchedule[0]));
 
 // ---------------------------------------------------------------------------
+// Timekeeping across deep sleep — stored in RTC memory
+// ---------------------------------------------------------------------------
+
+RTC_DATA_ATTR static time_t  rtcSavedTime   = 0;  // epoch saved just before sleep
+RTC_DATA_ATTR static uint32_t rtcSleepSecs  = 0;  // sleep duration in seconds
+RTC_DATA_ATTR static time_t  rtcLastNtpSync = 0;  // epoch of last NTP sync
+
+// ---------------------------------------------------------------------------
 // Geolocation cache — stored in RTC memory, survives deep sleep
 // ---------------------------------------------------------------------------
 
-RTC_DATA_ATTR static float cachedLat          = 0.0f;
-RTC_DATA_ATTR static float cachedLon          = 0.0f;
-RTC_DATA_ATTR static long  cachedUtcOffset    = 0;
-RTC_DATA_ATTR static bool  geoCached          = false;
+RTC_DATA_ATTR static float cachedLat           = 0.0f;
+RTC_DATA_ATTR static float cachedLon           = 0.0f;
+RTC_DATA_ATTR static long  cachedUtcOffset     = 0;
+RTC_DATA_ATTR static bool  geoCached           = false;
 RTC_DATA_ATTR static char  currentLocation[96] = "";
 
 // ---------------------------------------------------------------------------
@@ -86,9 +94,16 @@ void ledBlink(int times, int onMs, int offMs) {
   }
 }
 
+void saveTimeForSleep(uint32_t sleepSecs) {
+  rtcSavedTime  = time(nullptr);
+  rtcSleepSecs  = sleepSecs;
+}
+
 void deepSleep() {
   if (config.deepSleepMins > 0) {
-    esp_sleep_enable_timer_wakeup((uint64_t)config.deepSleepMins * 60ULL * 1000000ULL);
+    uint32_t secs = (uint32_t)config.deepSleepMins * 60u;
+    saveTimeForSleep(secs);
+    esp_sleep_enable_timer_wakeup((uint64_t)secs * 1000000ULL);
     esp_deep_sleep_start();
   }
 }
@@ -101,7 +116,9 @@ void deepSleepRetry() {
   int mins = retrySchedule[idx];
   fetchRetryIndex++;
   Serial.printf("Retry %d: sleeping %d min before next attempt\n", fetchRetryIndex, mins);
-  esp_sleep_enable_timer_wakeup((uint64_t)mins * 60ULL * 1000000ULL);
+  uint32_t secs = (uint32_t)mins * 60u;
+  saveTimeForSleep(secs);
+  esp_sleep_enable_timer_wakeup((uint64_t)secs * 1000000ULL);
   esp_deep_sleep_start();
 }
 
@@ -346,12 +363,14 @@ void syncNTP() {
   }
   ledOff();
   Serial.println();
-  if (tries < 20)
+  if (tries < 20) {
+    rtcLastNtpSync = time(nullptr);
     Serial.printf("Time: %04d-%02d-%02d %02d:%02d:%02d\n",
                   1900 + t.tm_year, t.tm_mon + 1, t.tm_mday,
                   t.tm_hour, t.tm_min, t.tm_sec);
-  else
+  } else {
     Serial.println("NTP sync failed");
+  }
 }
 
 bool fetchWeatherData() {
@@ -414,12 +433,14 @@ bool fetchWeatherData() {
   return true;
 }
 
-// Geo + NTP on first call only; weather every call.
+// Geo + NTP on first call only; NTP re-synced once per day; weather every call.
 bool updateWeatherData() {
   if (!geoCached) {
     if (!fetchGeolocation()) return false;
     syncNTP();
     geoCached = true;
+  } else if (time(nullptr) - rtcLastNtpSync > 86400) {
+    syncNTP();
   }
   if (!fetchWeatherData()) return false;
   lastWeatherUpdate = millis();
@@ -435,6 +456,13 @@ void setup() {
   randomSeed(esp_random());
 
   ConfigManager::load(config);
+
+  // Restore system clock from RTC memory (saved before the last sleep)
+  if (rtcSavedTime > 0) {
+    struct timeval tv = { (time_t)(rtcSavedTime + rtcSleepSecs), 0 };
+    settimeofday(&tv, nullptr);
+    Serial.printf("Clock restored: epoch %lld + %us\n", (long long)rtcSavedTime, rtcSleepSecs);
+  }
 
   display.init(115200, true, 2, false);
 
