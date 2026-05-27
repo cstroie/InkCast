@@ -198,7 +198,7 @@ void displayWeather() {
     display.setFont(&FreeSans12pt7b);
     display.setTextColor(GxEPD_BLACK);
     char rangeStr[16];
-    snprintf(rangeStr, sizeof(rangeStr), "%.0f – %.0f%c", currentTempMin, currentTempMax, currentTempUnit);
+    snprintf(rangeStr, sizeof(rangeStr), "%.0f ... %.0f%c", currentTempMin, currentTempMax, currentTempUnit);
     display.setCursor(COL, 78);
     display.print(rangeStr);
 
@@ -351,9 +351,9 @@ bool fetchWeatherData() {
              dateStr[5], dateStr[6],   // MM
              dateStr[2], dateStr[3]);  // YY
 
-  Serial.printf("WMO %d  %.1f/%.1f%c  precip %.0f%%\n",
-                currentWeatherCode, currentTempMax, currentTempMin,
-                currentTempUnit, currentPrecipProb);
+  Serial.printf("WMO %d  now %.1f%c  %.1f...%.1f%c  precip %.0f%%\n",
+                currentWeatherCode, currentTemp, currentTempUnit,
+                currentTempMin, currentTempMax, currentTempUnit, currentPrecipProb);
   return true;
 }
 
