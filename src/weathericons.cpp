@@ -1,7 +1,7 @@
 /*
  * SPDX-License-Identifier: GPL-3.0
  *
- * Copyright (C) 2025 Costin Stroie <costinstroie@eridu.eu.org>
+ * Copyright (C) 2026 Costin Stroie <costinstroie@eridu.eu.org>
  */
 
 #include "weathericons.h"
