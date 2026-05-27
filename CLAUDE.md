@@ -23,7 +23,7 @@ on a GDEM029C90 128×296 panel via GxEPD2. No API keys required for either servi
 | `src/config_manager.h/.cpp` | NVS-backed runtime config via ESP32 Preferences (`namespace "epaper"`) |
 | `src/portal.h/.cpp` | Two-mode config portal: blocking AP-mode (first boot) + non-blocking STA-mode (always-on) |
 | `src/weathericons.h/.cpp` | WMO code → Weather Icons glyph lookup table |
-| `src/WeatherIcons48pt7b.h` | Weather Icons font at 48pt — main weather icon (`WI_FONT`) |
+| `src/WeatherIcons44pt7b.h` | Weather Icons font at 44pt — main weather icon (`WI_FONT`) |
 | `src/WeatherIcons12pt7b.h` | Weather Icons font at 12pt, umbrella glyph only (`WI_SMALL_FONT`) |
 | `data/weathericons.ttf` | Source font for generating bitmap headers via fontconvert |
 
@@ -45,11 +45,11 @@ on a GDEM029C90 128×296 panel via GxEPD2. No API keys required for either servi
 ## Display layout (296×128, rotation=1)
 
 ```
-x=12  y=100   Weather icon, 48pt, left column
+cx=68 cy=60  Weather icon, 44pt, centred in left column (COL=136, 2px margin)
 x=right-2 y=16   City name, FreeSansBold9pt, right-aligned
-COL=142  y=62    Current temperature, FreeSansBold24pt (red if >= 30C/86F)
-COL=142  y=88    Min ... Max range, FreeSans12pt
-COL=142  y=112   Umbrella icons 0–5, WeatherIcons12pt (1 per 20pp)
+COL=136  y=62    Current temperature, FreeSansBold24pt (red if >= 30C/86F)
+COL=136  y=88    Min ... Max range, FreeSans12pt
+COL=136  y=112   Umbrella icons 0–5, WeatherIcons12pt (1 per 20pp)
 centered y=120   Footer: SSID | IP | forecast date | NTP time, 6×8 built-in font
 ```
 
@@ -82,8 +82,8 @@ make
 # Example: umbrella glyph (0xF084 = 61572) at 12pt
 ./fontconvert ../../../../../data/weathericons.ttf 12 61572 61572 > ../../../../../src/WeatherIcons12pt7b.h
 
-# Full icon set at 48pt (0xF001=61441 to 0xF0B6=61622)
-./fontconvert ../../../../../data/weathericons.ttf 48 61441 61622 > ../../../../../src/WeatherIcons48pt7b.h
+# Full icon set at 44pt (0xF001=61441 to 0xF0B6=61622)
+./fontconvert ../../../../../data/weathericons.ttf 44 61441 61622 > ../../../../../src/WeatherIcons44pt7b.h
 ```
 
 The output filename suffix is `8b` when `last > 127` (all Weather Icons codepoints qualify).

@@ -152,7 +152,9 @@ void displayPortalInfo(const char* apName) {
 }
 
 void displayWeather() {
-  static const int COL = 142;
+  static const int COL     = 136;  // 132px max icon width + 2px margin each side
+  static const int ICON_CX = 68;   // horizontal centre of left icon column
+  static const int ICON_CY = 60;   // vertical centre (footer at y=120 → mid = 60)
 
   bool severe  = isSevereWeather(currentWeatherCode);
   bool hot     = (currentTempUnit == 'C') ? (currentTemp >= 30.0f) : (currentTemp >= 86.0f);
@@ -172,9 +174,14 @@ void displayWeather() {
   do {
     display.fillScreen(GxEPD_WHITE);
 
-    // Weather icon — left column, baseline y=100
+    // Weather icon — centred in left column both horizontally and vertically
     display.setFont(WI_FONT);
-    display.drawChar(12, 100, currentIconCode, iconColor, GxEPD_WHITE, 1);
+    {
+      const GFXglyph* g = &WI_FONT->glyph[currentIconCode - WI_FONT->first];
+      int16_t ix = ICON_CX - g->xAdvance / 2;
+      int16_t iy = ICON_CY - g->yOffset - (int16_t)g->height / 2;
+      display.drawChar(ix, iy, currentIconCode, iconColor, GxEPD_WHITE, 1);
+    }
 
     // City name — right-aligned, top row
     int firstComma = currentLocation.indexOf(',');
