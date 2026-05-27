@@ -411,12 +411,28 @@ void setup() {
   if (config.deepSleepMins == -1)
     startConfigServer(config);
 
-  if (updateWeatherData()) {
-    ledBlink(2, 80, 80);    // 2 short flashes = success
-    displayWeather();
-  } else {
-    ledBlink(3, 300, 200);  // 3 long flashes = error
-    displayError("Weather unavailable");
+  // Fetch with exponential backoff; don't touch the display until data arrives.
+  {
+    unsigned long retryMs = (unsigned long)random(60, 300) * 1000UL;  // 1–5 min initial
+    int attempt = 0;
+    while (true) {
+      if (updateWeatherData()) {
+        ledBlink(2, 80, 80);
+        displayWeather();
+        break;
+      }
+      ledBlink(3, 300, 200);
+      // In sleep mode give up after 3 attempts; the next wakeup will retry.
+      if (config.deepSleepMins != -1 && ++attempt >= 3) break;
+      Serial.printf("Fetch failed (attempt %d), retrying in %lus\n",
+                    attempt + 1, retryMs / 1000);
+      unsigned long waitUntil = millis() + retryMs;
+      while (millis() < waitUntil) {
+        handleConfigServer();
+        delay(100);
+      }
+      retryMs = min(retryMs * 2, 30UL * 60UL * 1000UL);  // cap at 30 min
+    }
   }
 
   display.hibernate();
@@ -428,12 +444,32 @@ void loop() {
 
   handleConfigServer();
 
-  // Periodic weather refresh
-  unsigned long interval = (unsigned long)config.updateInterval * 60UL * 1000UL;
-  if (millis() - lastWeatherUpdate > interval) {
-    if (updateWeatherData())
-      displayWeather();
-    display.hibernate();
+  // Periodic weather refresh with exponential backoff on failure
+  {
+    static unsigned long fetchRetryMs = 0;  // 0 = use normal interval
+    static unsigned long nextRetryMs  = 0;
+
+    unsigned long now      = millis();
+    unsigned long interval = (unsigned long)config.updateInterval * 60UL * 1000UL;
+    bool timeToFetch = (fetchRetryMs > 0)
+                       ? (now >= nextRetryMs)
+                       : (now - lastWeatherUpdate >= interval);
+
+    if (timeToFetch) {
+      if (updateWeatherData()) {
+        displayWeather();
+        display.hibernate();
+        fetchRetryMs = 0;
+      } else {
+        ledBlink(3, 300, 200);
+        if (fetchRetryMs == 0)
+          fetchRetryMs = (unsigned long)random(60, 300) * 1000UL;
+        else
+          fetchRetryMs = min(fetchRetryMs * 2, 30UL * 60UL * 1000UL);
+        nextRetryMs = millis() + fetchRetryMs;
+        Serial.printf("Fetch failed, retry in %lus\n", fetchRetryMs / 1000);
+      }
+    }
   }
 
   // Button: re-enter config portal or force an immediate refresh
