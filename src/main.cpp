@@ -67,6 +67,13 @@ void ledOff() {
   if (config.ledPin != -1) digitalWrite(config.ledPin, HIGH);
 }
 
+void ledBlink(int times, int onMs, int offMs) {
+  for (int i = 0; i < times; i++) {
+    ledOn();  delay(onMs);
+    ledOff(); if (i < times - 1) delay(offMs);
+  }
+}
+
 void deepSleep() {
   if (config.deepSleepMins > 0) {
     esp_sleep_enable_timer_wakeup((uint64_t)config.deepSleepMins * 60ULL * 1000000ULL);
@@ -216,6 +223,7 @@ void displayWeather() {
 
 bool fetchGeolocation() {
   Serial.println("Fetching geolocation...");
+  ledOn();  // steady = network busy
   HTTPClient http;
   http.begin("http://ip-api.com/json/?fields=status,message,city,regionName,country,lat,lon,offset");
   int code = http.GET();
@@ -231,6 +239,7 @@ bool fetchGeolocation() {
 
   if (err || doc["status"] != "success") {
     Serial.println("Geolocation parse/API error");
+    ledOff();
     return false;
   }
 
@@ -243,6 +252,7 @@ bool fetchGeolocation() {
 
   Serial.printf("Location: %s  (%.4f, %.4f)  UTC+%lds\n",
                 currentLocation.c_str(), cachedLat, cachedLon, cachedUtcOffset);
+  ledOff();
   return true;
 }
 
@@ -251,7 +261,11 @@ void syncNTP() {
   Serial.print("NTP sync");
   struct tm t;
   int tries = 0;
-  while (!getLocalTime(&t) && tries++ < 20) { delay(500); Serial.print("."); }
+  while (!getLocalTime(&t) && tries++ < 20) {
+    ledOn(); delay(100); ledOff(); delay(400);  // fast blink = waiting for NTP
+    Serial.print(".");
+  }
+  ledOff();
   Serial.println();
   if (tries < 20)
     Serial.printf("Time: %04d-%02d-%02d %02d:%02d:%02d\n",
@@ -263,6 +277,7 @@ void syncNTP() {
 
 bool fetchWeatherData() {
   Serial.printf("Fetching weather for (%.4f, %.4f)...\n", cachedLat, cachedLon);
+  ledOn();  // steady = network busy
 
   String url = "https://api.open-meteo.com/v1/forecast"
                "?latitude="  + String(cachedLat, 4) +
@@ -280,6 +295,7 @@ bool fetchWeatherData() {
   if (code != HTTP_CODE_OK) {
     Serial.printf("Weather HTTP error: %d\n", code);
     http.end();
+    ledOff();
     return false;
   }
 
@@ -290,8 +306,10 @@ bool fetchWeatherData() {
   DeserializationError err = deserializeJson(doc, payload);
   if (err) {
     Serial.printf("Weather JSON error: %s\n", err.c_str());
+    ledOff();
     return false;
   }
+  ledOff();
 
   currentWeatherCode = doc["daily"]["weather_code"][0];
   currentTempMax     = doc["daily"]["temperature_2m_max"][0];
@@ -345,6 +363,7 @@ void setup() {
   if (!ConfigManager::isConfigured() || forcePortal) {
     displayPortalInfo(apName);
     display.hibernate();
+    ledOn();                          // steady = portal active
     runConfigPortal(config, apName);  // blocks until reboot
     return;
   }
@@ -353,10 +372,14 @@ void setup() {
   Serial.printf("Connecting to %s", config.wifiSsid);
   WiFi.begin(config.wifiSsid, config.wifiPassword);
   int tries = 0;
-  while (WiFi.status() != WL_CONNECTED && tries++ < 20) { delay(500); Serial.print("."); }
+  while (WiFi.status() != WL_CONNECTED && tries++ < 20) {
+    ledOn(); delay(250); ledOff(); delay(250);  // slow blink = connecting
+    Serial.print(".");
+  }
   Serial.println();
 
   if (WiFi.status() != WL_CONNECTED) {
+    ledBlink(3, 300, 200);  // 3 long flashes = error
     displayError("WiFi failed", config.wifiSsid);
     display.hibernate();
     deepSleep();
@@ -364,10 +387,13 @@ void setup() {
   }
   Serial.printf("WiFi OK — %s\n", WiFi.localIP().toString().c_str());
 
-  if (updateWeatherData())
+  if (updateWeatherData()) {
+    ledBlink(2, 80, 80);    // 2 short flashes = success
     displayWeather();
-  else
+  } else {
+    ledBlink(3, 300, 200);  // 3 long flashes = error
     displayError("Weather unavailable");
+  }
 
   display.hibernate();
   deepSleep();
