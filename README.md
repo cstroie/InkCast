@@ -84,6 +84,7 @@ The portal is accessible three ways:
 | Setting | Default | Description |
 |---------|---------|-------------|
 | WiFi SSID / Password | — | Your local network credentials |
+| City | — (auto) | Optional city name for weather location. Empty = auto-detect from IP via ip-api.com |
 | Temperature units | Celsius | °C or °F |
 | Forecast days | 1 | Days fetched from Open-Meteo (display shows today only) |
 | Update interval | 30 min | How often to refresh weather — dropdown: 15, 30, 45, 60, 120, 240, 360, 720, 1440 min |

@@ -12,6 +12,7 @@ void ConfigManager::load(Config& cfg) {
   p.begin(NS, /*readOnly=*/true);
   strlcpy(cfg.wifiSsid,     p.getString("ssid",     "").c_str(), sizeof(cfg.wifiSsid));
   strlcpy(cfg.wifiPassword, p.getString("pass",     "").c_str(), sizeof(cfg.wifiPassword));
+  strlcpy(cfg.city,         p.getString("city",     "").c_str(), sizeof(cfg.city));
   cfg.tempUnits      = p.getInt("units",    1);
   cfg.forecastDays   = p.getInt("fdays",    1);
   cfg.updateInterval = p.getInt("interval", 30);
@@ -26,6 +27,7 @@ void ConfigManager::save(const Config& cfg) {
   p.begin(NS, /*readOnly=*/false);
   p.putString("ssid",     cfg.wifiSsid);
   p.putString("pass",     cfg.wifiPassword);
+  p.putString("city",     cfg.city);
   p.putInt("units",       cfg.tempUnits);
   p.putInt("fdays",       cfg.forecastDays);
   p.putInt("interval",    cfg.updateInterval);

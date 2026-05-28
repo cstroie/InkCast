@@ -55,6 +55,11 @@ button:active{background:#357abd}
 <section>
 <h2>Weather</h2>
 <label>
+  <span class="lbl">City (optional)</span>
+  <input name="city" value="%CITY%" autocomplete="off" placeholder="e.g. Mangalia">
+  <small>Leave empty to detect location automatically from your IP address.</small>
+</label>
+<label>
   <span class="lbl">Temperature units</span>
   <select name="units">
     <option value="1"%SEL_C%>Celsius (&deg;C)</option>
@@ -118,6 +123,7 @@ static String buildPage(const Config& cfg) {
   html = FPSTR(HTML);
   html.replace("%SSID%",   String(cfg.wifiSsid));
   html.replace("%PASS%",   String(cfg.wifiPassword));
+  html.replace("%CITY%",   String(cfg.city));
   html.replace("%SEL_C%",  cfg.tempUnits == 1 ? " selected" : "");
   html.replace("%SEL_F%",  cfg.tempUnits == 0 ? " selected" : "");
   html.replace("%FDAYS%",  String(cfg.forecastDays));
@@ -140,6 +146,7 @@ static void applyFormArgs(WebServer& server, Config& cfg) {
     strlcpy(cfg.wifiSsid,     server.arg("ssid").c_str(), sizeof(cfg.wifiSsid));
   if (server.hasArg("pass"))
     strlcpy(cfg.wifiPassword, server.arg("pass").c_str(), sizeof(cfg.wifiPassword));
+  strlcpy(cfg.city, server.arg("city").c_str(), sizeof(cfg.city));
   cfg.tempUnits    = server.arg("units").toInt();
   cfg.forecastDays = constrain(server.arg("fdays").toInt(), 1, 7);
   int iv = server.arg("interval").toInt();

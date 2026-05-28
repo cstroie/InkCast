@@ -462,10 +462,50 @@ bool fetchWeatherData() {
   return true;
 }
 
+bool fetchManualGeolocation() {
+  Serial.printf("Geocoding city: %s\n", config.city);
+  ledOn();
+  WiFiClientSecure client;
+  client.setInsecure();
+  HTTPClient http;
+  http.begin(client, "https://geocoding-api.open-meteo.com/v1/search?name="
+             + String(config.city) + "&count=1&language=en&format=json");
+  int code = http.GET();
+  if (code != HTTP_CODE_OK) {
+    Serial.printf("Geocoding HTTP error: %d\n", code);
+    http.end();
+    ledOff();
+    return false;
+  }
+  String payload = http.getString();
+  http.end();
+  ledOff();
+
+  JsonDocument doc;
+  DeserializationError err = deserializeJson(doc, payload);
+  if (err || !doc["results"].is<JsonArray>() || doc["results"].as<JsonArray>().size() == 0) {
+    Serial.printf("Geocoding: city '%s' not found\n", config.city);
+    return false;
+  }
+
+  JsonObject r = doc["results"][0];
+  cachedLat = r["latitude"].as<float>();
+  cachedLon = r["longitude"].as<float>();
+  snprintf(currentLocation, sizeof(currentLocation), "%s, %s, %s",
+           r["name"].as<const char*>(),
+           r["admin1"].as<const char*>(),
+           r["country"].as<const char*>());
+  Serial.printf("Geocoded: %s  (%.4f, %.4f)\n", currentLocation, cachedLat, cachedLon);
+  return true;
+}
+
 // Geo + NTP on first call only; NTP re-synced once per day; weather every call.
 bool updateWeatherData() {
   if (!geoCached) {
-    if (!fetchGeolocation()) return false;
+    if (!fetchGeolocation()) return false;   // always: sets utcOffset + fallback lat/lon
+    if (config.city[0] != '\0') {
+      if (!fetchManualGeolocation()) return false;  // overrides lat/lon/name
+    }
     syncNTP();
     geoCached = true;
   } else if (time(nullptr) - rtcLastNtpSync > 28800) {

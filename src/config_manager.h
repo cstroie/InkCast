@@ -10,6 +10,7 @@
 struct Config {
   char  wifiSsid[64];
   char  wifiPassword[64];
+  char  city[64];         // manual city override; empty = auto via ip-api.com
   int   tempUnits;        // 0 = Fahrenheit, 1 = Celsius
   int   forecastDays;     // 1–7
   int   updateInterval;   // minutes between refreshes

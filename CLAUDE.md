@@ -34,6 +34,7 @@ on a GDEM029C90 128×296 panel via GxEPD2. No API keys required for either servi
 - **HTTPS weather fetch**: use `http.getString()` then `deserializeJson(doc, payload)` — NOT `http.getStream()`. WiFiClientSecure TLS streams are unreliable as ArduinoJson Stream sources on ESP32.
 - **HTTP geolocation**: `getStream()` is fine here (plain HTTP, no TLS).
 - **Geolocation cache**: `geoCached` flag — geo + NTP fetched once per power cycle. Deep sleep clears RAM so it re-fetches on every wake. `loop()` reuses the cached values.
+- **City override**: if `config.city` is non-empty, `fetchManualGeolocation()` calls the Open-Meteo geocoding API (`https://geocoding-api.open-meteo.com/v1/search`) and overwrites `cachedLat`, `cachedLon`, and `currentLocation`. `fetchGeolocation()` (ip-api.com) always runs first to get `cachedUtcOffset` for NTP. Both calls happen only once per power cycle via `geoCached`.
 - **Config portal modes**:
   - `runConfigPortal()` — blocks forever, WiFi AP + captive DNS, used at first boot or when button held
   - `startConfigServer()` / `handleConfigServer()` — non-blocking WebServer on station IP, always started after WiFi connects; in sleep mode active only during the post-refresh window; in stay-awake mode polled every `loop()` iteration
