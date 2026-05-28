@@ -104,25 +104,26 @@ void saveTimeForSleep(uint32_t sleepSecs) {
 // Open-Meteo updates at :00/:15/:30/:45; we fetch 2 minutes later.
 static const int WAKE_SLOTS[] = {2 * 60, 17 * 60, 32 * 60, 47 * 60};
 
-// Returns seconds until the next aligned wake slot that is at least intervalMins away.
+// Returns seconds until the next aligned wake slot.
+// Jumps exactly intervalMins/15 slots forward from the last passed slot,
+// so the device always wakes at :02/:17/:32/:47 on the correct cadence.
 // Falls back to intervalMins*60 if local time is unavailable.
 static uint32_t secsUntilAlignedSlot(int intervalMins) {
   struct tm t;
   if (!getLocalTime(&t)) return (uint32_t)intervalMins * 60u;
-  int curSec       = t.tm_min * 60 + t.tm_sec;
-  uint32_t minWait = (uint32_t)intervalMins * 60u;
-  uint32_t best    = UINT32_MAX;
-  for (int s : WAKE_SLOTS) {
-    uint32_t wait = (s > curSec) ? (uint32_t)(s - curSec) : (uint32_t)(3600 - curSec + s);
-    if (wait < minWait) {
-      uint32_t extra = (minWait - wait + 3599u) / 3600u;
-      wait += extra * 3600u;
-    }
-    if (wait < best) best = wait;
+  int curSec = t.tm_min * 60 + t.tm_sec;
+
+  // Find the most recent past slot (may be negative if before :02 this hour)
+  int lastSlot = WAKE_SLOTS[3] - 3600;  // :47 of previous hour as default
+  for (int i = 3; i >= 0; i--) {
+    if (WAKE_SLOTS[i] <= curSec) { lastSlot = WAKE_SLOTS[i]; break; }
   }
+
+  int targetSec    = lastSlot + (intervalMins / 15) * 15 * 60;
+  uint32_t wait    = (uint32_t)(targetSec - curSec);
   Serial.printf("Aligned sleep: %us (next slot in %um%02us)\n",
-                best, best / 60, best % 60);
-  return best;
+                wait, wait / 60, wait % 60);
+  return wait;
 }
 
 void deepSleep() {
