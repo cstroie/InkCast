@@ -180,8 +180,15 @@ static void applyFormArgs(WebServer& server, Config& cfg) {
 }
 
 static const char SAVED_HTML[] =
-  "<!DOCTYPE html><html><body style='font-family:system-ui;padding:40px;text-align:center'>"
-  "<h2>Saved!</h2><p>Rebooting&hellip;</p></body></html>";
+  "<!DOCTYPE html><html><head>"
+  "<link rel='icon' type='image/svg+xml' href='/favicon.svg'>"
+  "<meta http-equiv='refresh' content='30;url=/'>"
+  "</head><body style='font-family:system-ui;padding:40px;text-align:center'>"
+  "<h2>Saved!</h2><p>Rebooting&hellip;</p>"
+  "<p style='color:#999;font-size:.9rem'>Redirecting to config in "
+  "<span id='t'>30</span> s</p>"
+  "<script>var n=30;setInterval(function(){document.getElementById('t').textContent=--n;},1000);</script>"
+  "</body></html>";
 
 // ---------------------------------------------------------------------------
 // Blocking AP-mode portal (first boot / forced setup)
