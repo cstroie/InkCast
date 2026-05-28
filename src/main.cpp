@@ -597,6 +597,10 @@ void setup() {
         Serial.println("Button pressed — portal extended to 60 s");
         while (digitalRead(config.buttonPin) == LOW) delay(10);
       }
+      if (configServerPageServed()) {
+        windowEnd = millis() + 60000UL;
+        Serial.println("Page served — portal extended to 60 s");
+      }
     }
     ledOff();
   }

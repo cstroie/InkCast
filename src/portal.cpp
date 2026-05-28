@@ -101,6 +101,14 @@ button:active{background:#357abd}
 // Shared helpers
 // ---------------------------------------------------------------------------
 
+static bool pageServedFlag = false;
+
+bool configServerPageServed() {
+  bool v = pageServedFlag;
+  pageServedFlag = false;
+  return v;
+}
+
 static const int INTERVALS[] = {15, 30, 45, 60, 120, 240, 360, 720, 1440};
 static const int INTERVALS_N = sizeof(INTERVALS) / sizeof(INTERVALS[0]);
 
@@ -163,6 +171,7 @@ void runConfigPortal(Config& cfg, const char* apName) {
   WebServer server(80);
 
   server.on("/", HTTP_GET, [&]() {
+    pageServedFlag = true;
     server.send(200, "text/html", buildPage(cfg));
   });
 
@@ -204,6 +213,7 @@ void startConfigServer(Config& cfg) {
   bgServer = new WebServer(80);
 
   bgServer->on("/", HTTP_GET, []() {
+    pageServedFlag = true;
     bgServer->send(200, "text/html", buildPage(*bgCfg));
   });
 

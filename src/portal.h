@@ -17,3 +17,6 @@ void startConfigServer(Config& cfg);
 
 // Process one round of pending HTTP requests. Call from loop().
 void handleConfigServer();
+
+// Returns true (and resets the flag) if the config page was served since last check.
+bool configServerPageServed();
