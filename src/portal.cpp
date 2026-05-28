@@ -12,11 +12,32 @@
 // HTML page (stored in flash)
 // ---------------------------------------------------------------------------
 
+static const char FAVICON[] PROGMEM =
+  "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'>"
+  // Sun
+  "<circle cx='12' cy='12' r='5' fill='#FFD700'/>"
+  // Sun rays
+  "<g stroke='#FFD700' stroke-width='2' stroke-linecap='round'>"
+  "<line x1='12' y1='4' x2='12' y2='2'/>"
+  "<line x1='12' y1='22' x2='12' y2='20'/>"
+  "<line x1='4' y1='12' x2='2' y2='12'/>"
+  "<line x1='22' y1='12' x2='20' y2='12'/>"
+  "<line x1='6' y1='6' x2='4.5' y2='4.5'/>"
+  "<line x1='18' y1='6' x2='19.5' y2='4.5'/>"
+  "<line x1='6' y1='18' x2='4.5' y2='19.5'/>"
+  "<line x1='18' y1='18' x2='19.5' y2='19.5'/>"
+  "</g>"
+  // Cloud
+  "<path d='M11 28 Q7 28 7 24.5 Q7 22 10 21.5 Q10.5 18.5 14 18.5 Q17 18.5 18 21 Q19.5 20.5 20.5 21.5 Q23 21.5 23 24.5 Q23 28 19 28 Z'"
+  " fill='white' stroke='#bbb' stroke-width='1' stroke-linejoin='round'/>"
+  "</svg>";
+
 static const char HTML[] PROGMEM = R"html(<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
+<link rel="icon" type="image/svg+xml" href="/favicon.svg">
 <title>InkCast Setup</title>
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
@@ -190,6 +211,12 @@ void runConfigPortal(Config& cfg, const char* apName) {
     ESP.restart();
   });
 
+  auto serveFavicon = [&]() {
+    server.send_P(200, "image/svg+xml", FAVICON);
+  };
+  server.on("/favicon.svg", HTTP_GET, serveFavicon);
+  server.on("/favicon.ico", HTTP_GET, serveFavicon);
+
   server.onNotFound([&]() {
     server.sendHeader("Location", String("http://") + ip.toString() + "/");
     server.send(302, "text/plain", "");
@@ -231,6 +258,9 @@ void startConfigServer(Config& cfg) {
     delay(1500);
     ESP.restart();
   });
+
+  bgServer->on("/favicon.svg", HTTP_GET, []() { bgServer->send_P(200, "image/svg+xml", FAVICON); });
+  bgServer->on("/favicon.ico", HTTP_GET, []() { bgServer->send_P(200, "image/svg+xml", FAVICON); });
 
   bgServer->onNotFound([]() {
     IPAddress ip = WiFi.localIP();
