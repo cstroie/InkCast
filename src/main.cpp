@@ -378,10 +378,10 @@ bool fetchWeatherData() {
   Serial.printf("Fetching weather for (%.4f, %.4f)...\n", cachedLat, cachedLon);
   ledOn();  // steady = network busy
 
-  String url = "https://api.open-meteo.com/v1/forecast"
+  String url = "http://api.open-meteo.com/v1/forecast"
                "?latitude="  + String(cachedLat, 4) +
                "&longitude=" + String(cachedLon, 4) +
-               "&current=temperature_2m"
+               "&current=weather_code,temperature_2m"
                "&daily=weather_code,temperature_2m_max,temperature_2m_min"
                ",precipitation_probability_max"
                "&timezone=auto&forecast_days=" + String(config.forecastDays) +
