@@ -49,7 +49,7 @@ cx=68 cy=60           Weather icon, 44pt, centred in left column (COL=136, 2px m
 x=right-2 y=16        City name, FreeSansBold9pt, right-aligned
 centred [COL..295] y=62   Current temperature, FreeSansBold24pt (red if >= 30C/86F)
 centred [COL..295] y=88   Min ... Max range, FreeSans12pt
-centred [COL..295] y=116  Umbrella icons 0–5, WeatherIcons10pt (1 per 20%)
+centred [COL..295] y=116  Umbrella icons 0–5, WeatherIcons10pt (1 per 20%), 24px step (22 xAdv + 2 gap)
 centred y=120         Footer: SSID | IP | forecast date | NTP time, 6×8 built-in font
 ```
 
