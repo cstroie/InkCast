@@ -538,21 +538,8 @@ void setup() {
   }
   Serial.printf("WiFi OK — %s\n", WiFi.localIP().toString().c_str());
 
-  // Always start config server — gives a short boot window to change settings
-  // even in sleep mode. In stay-awake mode it keeps running via loop().
+  // Start config server (runs in background; in sleep mode only active during windows)
   startConfigServer(config);
-  {
-    unsigned long windowEnd = millis() + 5000UL;
-    Serial.printf("Config portal: http://%s/ (5 s window)\n", WiFi.localIP().toString().c_str());
-    while (millis() < windowEnd) {
-      handleConfigServer();
-      if (config.buttonPin != -1 && digitalRead(config.buttonPin) == LOW) {
-        windowEnd = millis() + 60000UL;
-        Serial.println("Button pressed — portal extended to 60 s");
-        while (digitalRead(config.buttonPin) == LOW) delay(10);  // wait for release
-      }
-    }
-  }
 
   // Each fetch attempt: try once, wait 10 s, try once more before giving up.
   auto tryFetchTwice = []() -> bool {
@@ -595,13 +582,23 @@ void setup() {
 
   display.hibernate();
 
-  // Button pressed during fetch/display phase — run portal for 1 min before sleeping
-  if (config.deepSleepMins > 0 &&
-      config.buttonPin != -1 && digitalRead(config.buttonPin) == LOW) {
-    Serial.println("Button pressed — portal extended to 60 s");
-    unsigned long windowEnd = millis() + 60000UL;
-    while (millis() < windowEnd)
+  // Config portal window — shown after display refresh so the user knows when to act.
+  // Fast LED blink signals the window is open. Button press extends to 60 s.
+  if (config.deepSleepMins > 0) {
+    unsigned long windowEnd = millis() + 5000UL;
+    Serial.printf("Config portal: http://%s/ (5 s window)\n", WiFi.localIP().toString().c_str());
+    while (millis() < windowEnd) {
+      // Fast blink: 50 ms on / 50 ms off
+      ledOn();  delay(50);
+      ledOff(); delay(50);
       handleConfigServer();
+      if (config.buttonPin != -1 && digitalRead(config.buttonPin) == LOW) {
+        windowEnd = millis() + 60000UL;
+        Serial.println("Button pressed — portal extended to 60 s");
+        while (digitalRead(config.buttonPin) == LOW) delay(10);
+      }
+    }
+    ledOff();
   }
 
   deepSleep();
