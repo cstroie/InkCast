@@ -268,7 +268,7 @@ void displayWeather() {
       int totalW = umbrellas * 28 - 2;  // last glyph needs no trailing gap
       int x = COL + (display.width() - COL - totalW) / 2;
       for (int i = 0; i < umbrellas; i++) {
-        display.drawChar(x, 112, WI_UMBRELLA, GxEPD_BLACK, GxEPD_WHITE, 1);
+        display.drawChar(x, 116, WI_UMBRELLA, GxEPD_BLACK, GxEPD_WHITE, 1);
         x += 28;
       }
     }

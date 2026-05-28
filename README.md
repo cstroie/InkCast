@@ -11,7 +11,7 @@ A self-contained weather display for a 2.9" tri-color e-paper panel, running on 
 - NTP time sync with automatic UTC offset from geolocation
 - Weather icons from the [Weather Icons](https://erikflowers.github.io/weather-icons/) font, rendered at 44pt
 - Current temperature (large) and min/max predicted range shown in the right column
-- Precipitation probability shown as 0–5 umbrella icons
+- Precipitation probability shown as 0–5 umbrella icons (one per 20 %)
 - Red color used for severe weather icon and current temperature when ≥ 30 °C / 86 °F
 - Browser-based configuration portal (WiFi, units, intervals, pins) stored in NVS — survives firmware updates
 - Active-low LED status signalling
@@ -37,7 +37,7 @@ A self-contained weather display for a 2.9" tri-color e-paper panel, running on 
 |  [weather  ]                              City Name      |
 |  [ icon    ]         30.5C     <- current temp, 24pt bold|
 |  [ 44pt    ]      17 ... 30C   <- min...max range, 12pt  |
-|                   ☂ ☂ ☂        <- precip umbrellas, 12pt |
+|                   ☂ ☂ ☂        <- precip umbrellas, 10pt |
 |   SSID | 192.168.x.x | 27.05.26 | 14:35  <- footer 6×8  |
 +----------------------------------------------------------+
 ```
