@@ -265,11 +265,11 @@ void displayWeather() {
     display.setFont(WI_SMALL_FONT);
     display.setTextColor(GxEPD_BLACK);
     if (umbrellas > 0) {
-      int totalW = umbrellas * 28 - 2;  // last glyph needs no trailing gap
+      int totalW = umbrellas * 24 - 2;  // last glyph needs no trailing gap
       int x = COL + (display.width() - COL - totalW) / 2;
       for (int i = 0; i < umbrellas; i++) {
         display.drawChar(x, 116, WI_UMBRELLA, GxEPD_BLACK, GxEPD_WHITE, 1);
-        x += 28;
+        x += 24;
       }
     }
 

@@ -17,7 +17,7 @@
 
 #define WI_FONT        (&weathericons44pt8b)
 #define WI_SMALL_FONT  (&weathericons10pt8b)
-#define WI_UMBRELLA    ((uint16_t)0xF084)
+#define WI_UMBRELLA    ((unsigned char)0xF084)
 
 // Codepoints used
 #define WI_DAY_SUNNY     0xF00D
