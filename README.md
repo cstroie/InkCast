@@ -96,6 +96,10 @@ pio run                        # build
 pio run --target upload        # flash
 pio device monitor             # serial console at 115200 baud
 ```
+ 
+**Platform & Toolchain (pinned)**: this project is pinned to `platform-espressif32` `v7.0.1` (provides `framework-arduinoespressif32 @ 3.20017.241212+sha.dcc1105b`, `tool-esptoolpy @ 2.40900.250804`, `tool-openocd-esp32 @ 2.1100.20220706`, `toolchain-riscv32-esp @ 8.4.0+2021r2-patch5`).
+
+As a result PlatformIO resolves Arduino core libraries in the `2.0.0` series (e.g. `HTTPClient`, `WiFi`, `Preferences`) and the firmware builds smaller — Flash usage on my build: ~92.1%.
 
 The default environment is `esp32c3`. An `esp32` environment is also defined in `platformio.ini` for a standard ESP32 dev board (adjust SPI pins in [src/display.h](src/display.h) if needed).
 

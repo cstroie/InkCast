@@ -99,7 +99,7 @@ pio run --target upload   # flash
 pio device monitor        # serial at 115200
 ```
 
-Flash usage is tight (~94% of 1.3 MB partition). Avoid adding large assets or libraries.
+Flash usage (after pinning platform/tools) observed: ~92.1% of 1.31 MB partition — the project is pinned to `platform-espressif32` `v7.0.1` which provides `framework-arduinoespressif32 @ 3.20017.241212+sha.dcc1105b` and older Arduino core libraries (2.0.0 series) that reduce final firmware size. Avoid adding large assets or libraries.
 
 ## Copyright
 
