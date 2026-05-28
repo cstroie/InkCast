@@ -537,9 +537,15 @@ void setup() {
   }
   Serial.printf("WiFi OK — %s\n", WiFi.localIP().toString().c_str());
 
-  // Start background config server so settings are always reachable
-  if (config.deepSleepMins == -1)
-    startConfigServer(config);
+  // Always start config server — gives a short boot window to change settings
+  // even in sleep mode. In stay-awake mode it keeps running via loop().
+  startConfigServer(config);
+  {
+    unsigned long windowEnd = millis() + 5000UL;
+    Serial.printf("Config portal: http://%s/ (5 s window)\n", WiFi.localIP().toString().c_str());
+    while (millis() < windowEnd)
+      handleConfigServer();
+  }
 
   // Each fetch attempt: try once, wait 10 s, try once more before giving up.
   auto tryFetchTwice = []() -> bool {
