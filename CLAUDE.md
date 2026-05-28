@@ -37,6 +37,8 @@ on a GDEM029C90 128×296 panel via GxEPD2. No API keys required for either servi
 - **Config portal modes**:
   - `runConfigPortal()` — blocks forever, WiFi AP + captive DNS, used at first boot or when button held
   - `startConfigServer()` / `handleConfigServer()` — non-blocking WebServer on station IP, started only when `deepSleepMins == -1`, polled at the top of every `loop()` iteration
+- **Update interval**: dropdown, fixed values: 15, 30, 45, 60, 120, 240, 360, 720, 1440 minutes. Validated in `applyFormArgs()`; falls back to 30 if an invalid value is posted.
+- **Sleep toggle**: checkbox. When checked, `deepSleepMins = updateInterval`; when unchecked, `deepSleepMins = -1`. There is no separate sleep duration — the interval IS the sleep duration.
 - **Font rendering**: weather icon uses `display.drawChar()` with a `uint16_t` codepoint — NOT `display.print()`. The font is `weathericons44pt8b` (note the `8b` suffix, not `7b`).
 - **Color use**: `GxEPD_RED` for severe weather icon (WMO codes 56,57,66,67,75,82,86,95,96,99) and for current temp ≥ 30 °C / 86 °F. Min–max range stays black.
 - **Fetch retry**: on failure, waits a random 1–5 min then doubles each retry, capped at 30 min. Display is not updated until data arrives (old e-paper content preserved).

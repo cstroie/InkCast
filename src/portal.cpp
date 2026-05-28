@@ -67,20 +67,14 @@ button:active{background:#357abd}
   <small>How many days of forecast to fetch. The display shows today&rsquo;s forecast only.</small>
 </label>
 <label>
-  <span class="lbl">Update interval (minutes)</span>
-  <input name="interval" type="number" min="1" max="1440" value="%INTERVAL%">
-  <small>How often to refresh weather data. 30&ndash;60 min is a good balance.</small>
+  <span class="lbl">Update interval</span>
+  <select name="interval">%INTERVAL_OPTIONS%</select>
+  <small>How often to refresh weather data.</small>
 </label>
-</section>
-
-<section>
-<h2>Power</h2>
 <label>
-  <span class="lbl">Deep sleep duration (minutes)</span>
-  <input name="sleep" type="number" min="-1" value="%SLEEP%">
-  <small>After each refresh the device sleeps for this many minutes before waking to fetch again.
-         Set to <b>-1</b> to stay awake permanently (useful for a mains-powered frame);
-         set to <b>0</b> to disable the timer (device never wakes on its own).</small>
+  <span class="lbl">Deep sleep between refreshes</span>
+  <input name="sleep" type="checkbox" value="1" %SLEEP_CHK% style="width:auto;margin-top:6px">
+  <small>When enabled, the device sleeps between refreshes to save power.</small>
 </label>
 </section>
 
@@ -107,19 +101,29 @@ button:active{background:#357abd}
 // Shared helpers
 // ---------------------------------------------------------------------------
 
+static const int INTERVALS[] = {15, 30, 45, 60, 120, 240, 360, 720, 1440};
+static const int INTERVALS_N = sizeof(INTERVALS) / sizeof(INTERVALS[0]);
+
 static String buildPage(const Config& cfg) {
   String html;
   html.reserve(3500);
   html = FPSTR(HTML);
-  html.replace("%SSID%",     String(cfg.wifiSsid));
-  html.replace("%PASS%",     String(cfg.wifiPassword));
-  html.replace("%SEL_C%",    cfg.tempUnits == 1 ? " selected" : "");
-  html.replace("%SEL_F%",    cfg.tempUnits == 0 ? " selected" : "");
-  html.replace("%FDAYS%",    String(cfg.forecastDays));
-  html.replace("%INTERVAL%", String(cfg.updateInterval));
-  html.replace("%SLEEP%",    String(cfg.deepSleepMins));
-  html.replace("%BTN%",      String(cfg.buttonPin));
-  html.replace("%LED%",      String(cfg.ledPin));
+  html.replace("%SSID%",   String(cfg.wifiSsid));
+  html.replace("%PASS%",   String(cfg.wifiPassword));
+  html.replace("%SEL_C%",  cfg.tempUnits == 1 ? " selected" : "");
+  html.replace("%SEL_F%",  cfg.tempUnits == 0 ? " selected" : "");
+  html.replace("%FDAYS%",  String(cfg.forecastDays));
+  String opts;
+  for (int i = 0; i < INTERVALS_N; i++) {
+    int v = INTERVALS[i];
+    opts += "<option value=\"" + String(v) + "\"";
+    if (v == cfg.updateInterval) opts += " selected";
+    opts += ">" + String(v) + " min</option>";
+  }
+  html.replace("%INTERVAL_OPTIONS%", opts);
+  html.replace("%SLEEP_CHK%", cfg.deepSleepMins > 0 ? "checked" : "");
+  html.replace("%BTN%",  String(cfg.buttonPin));
+  html.replace("%LED%",  String(cfg.ledPin));
   return html;
 }
 
@@ -128,10 +132,13 @@ static void applyFormArgs(WebServer& server, Config& cfg) {
     strlcpy(cfg.wifiSsid,     server.arg("ssid").c_str(), sizeof(cfg.wifiSsid));
   if (server.hasArg("pass"))
     strlcpy(cfg.wifiPassword, server.arg("pass").c_str(), sizeof(cfg.wifiPassword));
-  cfg.tempUnits      = server.arg("units").toInt();
-  cfg.forecastDays   = constrain(server.arg("fdays").toInt(), 1, 7);
-  cfg.updateInterval = max(1, (int)server.arg("interval").toInt());
-  cfg.deepSleepMins  = server.arg("sleep").toInt();
+  cfg.tempUnits    = server.arg("units").toInt();
+  cfg.forecastDays = constrain(server.arg("fdays").toInt(), 1, 7);
+  int iv = server.arg("interval").toInt();
+  bool valid = false;
+  for (int i = 0; i < INTERVALS_N; i++) if (INTERVALS[i] == iv) { valid = true; break; }
+  cfg.updateInterval = valid ? iv : 30;
+  cfg.deepSleepMins  = server.hasArg("sleep") ? cfg.updateInterval : -1;
   cfg.buttonPin      = server.arg("btn").toInt();
   cfg.ledPin         = server.arg("led").toInt();
 }

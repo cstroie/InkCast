@@ -82,8 +82,8 @@ The portal is accessible two ways:
 | WiFi SSID / Password | — | Your local network credentials |
 | Temperature units | Celsius | °C or °F |
 | Forecast days | 1 | Days fetched from Open-Meteo (display shows today only) |
-| Update interval | 30 min | How often to refresh weather |
-| Deep sleep duration | −1 | Minutes to sleep after each refresh. `−1` = stay awake; `0` = sleep forever (no auto-wake) |
+| Update interval | 30 min | How often to refresh weather — dropdown: 15, 30, 45, 60, 120, 240, 360, 720, 1440 min |
+| Deep sleep | Off | When enabled, the device sleeps for the update interval between refreshes |
 | Button GPIO | 9 | Short press = immediate refresh; hold 5 s = enter setup |
 | LED GPIO | 8 | Active-low status LED |
 
