@@ -42,7 +42,7 @@ on a GDEM029C90 128×296 panel via GxEPD2. No API keys required for either servi
 - **Font rendering**: weather icon uses `display.drawChar()` with a `uint16_t` codepoint — NOT `display.print()`. The font is `weathericons44pt8b` (note the `8b` suffix, not `7b`).
 - **Color use**: `GxEPD_RED` for severe weather icon (WMO codes 56,57,66,67,75,82,86,95,96,99) and for current temp ≥ 30 °C / 86 °F. Min–max range stays black.
 - **Fetch retry**: on failure, waits a random 1–5 min then doubles each retry, capped at 30 min. Display is not updated until data arrives (old e-paper content preserved).
-- **Deep sleep**: `esp_sleep_enable_timer_wakeup()` in microseconds. `-1` means stay awake (loop runs), `0` means no timer (sleeps but never auto-wakes).
+- **Deep sleep**: `config.deepSleepMins > 0` enables sleep; the actual duration is computed by `secsUntilAlignedSlot(config.updateInterval)` — it finds the next slot in {`:02`, `:17`, `:32`, `:47`} that is at least `updateInterval` minutes away, aligning wakes to 2 min after each Open-Meteo refresh. Falls back to `updateInterval * 60` if `getLocalTime()` fails. `deepSleepMins == -1` means stay awake (loop + config server run).
 
 ## Display layout (296×128, rotation=1)
 

@@ -101,9 +101,33 @@ void saveTimeForSleep(uint32_t sleepSecs) {
   rtcSleepSecs  = sleepSecs;
 }
 
+// Open-Meteo updates at :00/:15/:30/:45; we fetch 2 minutes later.
+static const int WAKE_SLOTS[] = {2 * 60, 17 * 60, 32 * 60, 47 * 60};
+
+// Returns seconds until the next aligned wake slot that is at least intervalMins away.
+// Falls back to intervalMins*60 if local time is unavailable.
+static uint32_t secsUntilAlignedSlot(int intervalMins) {
+  struct tm t;
+  if (!getLocalTime(&t)) return (uint32_t)intervalMins * 60u;
+  int curSec       = t.tm_min * 60 + t.tm_sec;
+  uint32_t minWait = (uint32_t)intervalMins * 60u;
+  uint32_t best    = UINT32_MAX;
+  for (int s : WAKE_SLOTS) {
+    uint32_t wait = (s > curSec) ? (uint32_t)(s - curSec) : (uint32_t)(3600 - curSec + s);
+    if (wait < minWait) {
+      uint32_t extra = (minWait - wait + 3599u) / 3600u;
+      wait += extra * 3600u;
+    }
+    if (wait < best) best = wait;
+  }
+  Serial.printf("Aligned sleep: %us (next slot in %um%02us)\n",
+                best, best / 60, best % 60);
+  return best;
+}
+
 void deepSleep() {
   if (config.deepSleepMins > 0) {
-    uint32_t secs = (uint32_t)config.deepSleepMins * 60u;
+    uint32_t secs = secsUntilAlignedSlot(config.updateInterval);
     saveTimeForSleep(secs);
     esp_sleep_enable_timer_wakeup((uint64_t)secs * 1000000ULL);
     esp_deep_sleep_start();

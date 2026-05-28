@@ -11,6 +11,7 @@ A self-contained weather display for a 2.9" tri-color e-paper panel, running on 
 - NTP time sync with automatic UTC offset from geolocation
 - Weather icons from the [Weather Icons](https://erikflowers.github.io/weather-icons/) font, rendered at 44pt
 - Current temperature (large) and min/max predicted range shown in the right column
+- Wake-ups aligned to Open-Meteo refresh slots: fetches happen at :02, :17, :32, :47 past the hour
 - Precipitation probability shown as 0–5 umbrella icons at 10pt (one per 20 %)
 - Red color used for severe weather icon and current temperature when ≥ 30 °C / 86 °F
 - Browser-based configuration portal (WiFi, units, intervals, pins) stored in NVS — survives firmware updates
