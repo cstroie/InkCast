@@ -38,7 +38,7 @@ button:active{background:#357abd}
 </head>
 <body>
 <h1>InkCast Setup</h1>
-<form method="POST" action="/save">
+<form method="POST" action="/">
 
 <section>
 <h2>WiFi</h2>
@@ -175,7 +175,7 @@ void runConfigPortal(Config& cfg, const char* apName) {
     server.send(200, "text/html", buildPage(cfg));
   });
 
-  server.on("/save", HTTP_POST, [&]() {
+  server.on("/", HTTP_POST, [&]() {
     applyFormArgs(server, cfg);
     ConfigManager::save(cfg);
     server.send(200, "text/html", SAVED_HTML);
