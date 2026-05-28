@@ -546,8 +546,9 @@ void setup() {
     while (millis() < windowEnd) {
       handleConfigServer();
       if (config.buttonPin != -1 && digitalRead(config.buttonPin) == LOW) {
-        windowEnd = millis() + 60000UL;  // extend to 1 min from button press
+        windowEnd = millis() + 60000UL;
         Serial.println("Button pressed — portal extended to 60 s");
+        while (digitalRead(config.buttonPin) == LOW) delay(10);  // wait for release
       }
     }
   }
