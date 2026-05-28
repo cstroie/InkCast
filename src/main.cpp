@@ -543,8 +543,13 @@ void setup() {
   {
     unsigned long windowEnd = millis() + 5000UL;
     Serial.printf("Config portal: http://%s/ (5 s window)\n", WiFi.localIP().toString().c_str());
-    while (millis() < windowEnd)
+    while (millis() < windowEnd) {
       handleConfigServer();
+      if (config.buttonPin != -1 && digitalRead(config.buttonPin) == LOW) {
+        windowEnd = millis() + 60000UL;  // extend to 1 min from button press
+        Serial.println("Button pressed — portal extended to 60 s");
+      }
+    }
   }
 
   // Each fetch attempt: try once, wait 10 s, try once more before giving up.
@@ -587,6 +592,16 @@ void setup() {
   }
 
   display.hibernate();
+
+  // Button pressed during fetch/display phase — run portal for 1 min before sleeping
+  if (config.deepSleepMins > 0 &&
+      config.buttonPin != -1 && digitalRead(config.buttonPin) == LOW) {
+    Serial.println("Button pressed — portal extended to 60 s");
+    unsigned long windowEnd = millis() + 60000UL;
+    while (millis() < windowEnd)
+      handleConfigServer();
+  }
+
   deepSleep();
 }
 
