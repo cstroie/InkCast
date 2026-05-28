@@ -16,8 +16,9 @@ A self-contained weather display for a 2.9" tri-color e-paper panel, running on 
 - Red color used for severe weather icon and current temperature when ≥ 30 °C / 86 °F
 - Browser-based configuration portal (WiFi, units, intervals, pins) stored in NVS — survives firmware updates
 - Active-low LED status signalling
-- Optional deep sleep between refreshes for battery-powered use
+- Optional deep sleep between refreshes for battery-powered use; wake-ups aligned to Open-Meteo refresh slots (:02, :17, :32, :47)
 - Optional button for manual refresh or forced portal re-entry
+- 5-second config portal window after each display refresh (fast LED blink); press button or open page to extend to 60 s
 
 ## Hardware
 
@@ -60,6 +61,7 @@ A self-contained weather display for a 2.9" tri-color e-paper panel, running on 
 | Steady on during fetch | Network request in progress |
 | 2 short flashes | Weather updated successfully |
 | 3 long flashes | Error (WiFi fail or weather unavailable) |
+| Very fast blink (50/50 ms) | Config portal window open (sleep mode only) |
 
 ## First-Time Setup
 
@@ -71,9 +73,10 @@ A self-contained weather display for a 2.9" tri-color e-paper panel, running on 
 
 ## Configuration Portal
 
-The portal is accessible two ways:
+The portal is accessible three ways:
 
 - **At boot**: hold the button while powering on, or if no WiFi is saved — the device starts as an AP (`InkCast-XXYY`) with a captive portal DNS redirect.
+- **After each refresh (sleep mode)**: after the display updates, the LED blinks very fast for 5 seconds. Press the button or open `http://<device-ip>/` during that window to extend it to 60 seconds. Loading the page keeps resetting the 60-second timer.
 - **During normal operation** (when deep sleep is disabled): navigate to `http://<device-ip>/` from any device on the same network.
 
 ### Settings

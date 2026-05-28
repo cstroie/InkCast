@@ -36,7 +36,8 @@ on a GDEM029C90 128×296 panel via GxEPD2. No API keys required for either servi
 - **Geolocation cache**: `geoCached` flag — geo + NTP fetched once per power cycle. Deep sleep clears RAM so it re-fetches on every wake. `loop()` reuses the cached values.
 - **Config portal modes**:
   - `runConfigPortal()` — blocks forever, WiFi AP + captive DNS, used at first boot or when button held
-  - `startConfigServer()` / `handleConfigServer()` — non-blocking WebServer on station IP, started only when `deepSleepMins == -1`, polled at the top of every `loop()` iteration
+  - `startConfigServer()` / `handleConfigServer()` — non-blocking WebServer on station IP, always started after WiFi connects; in sleep mode active only during the post-refresh window; in stay-awake mode polled every `loop()` iteration
+  - **Post-refresh portal window** (sleep mode only): after `displayWeather()` and `display.hibernate()`, LED blinks at 50/50 ms for 5 s. Button press or page load (`configServerPageServed()`) resets a 60-second timer. Window closes → `ledOff()` → `deepSleep()`.
 - **Update interval**: dropdown, fixed values: 15, 30, 45, 60, 120, 240, 360, 720, 1440 minutes. Validated in `applyFormArgs()`; falls back to 30 if an invalid value is posted.
 - **Sleep toggle**: checkbox. When checked, `deepSleepMins = updateInterval`; when unchecked, `deepSleepMins = -1`. There is no separate sleep duration — the interval IS the sleep duration.
 - **Font rendering**: weather icon uses `display.drawChar()` with a `uint16_t` codepoint — NOT `display.print()`. The font is `weathericons44pt8b` (note the `8b` suffix, not `7b`).
@@ -70,6 +71,7 @@ Current temperature comes from `current.temperature_2m` in the Open-Meteo respon
 | Network fetch in progress | Steady on |
 | Success | 2 short flashes (80/80ms) |
 | Error | 3 long flashes (300/200ms) |
+| Portal window open (sleep mode) | Very fast blink 50ms on / 50ms off |
 
 ## Generating font headers
 
