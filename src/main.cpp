@@ -465,10 +465,9 @@ bool fetchWeatherData() {
 bool fetchManualGeolocation() {
   Serial.printf("Geocoding city: %s\n", config.city);
   ledOn();
-  WiFiClientSecure client;
-  client.setInsecure();
+  WiFiClient client;
   HTTPClient http;
-  http.begin(client, "https://geocoding-api.open-meteo.com/v1/search?name="
+  http.begin(client, "http://geocoding-api.open-meteo.com/v1/search?name="
              + String(config.city) + "&count=1&language=en&format=json");
   int code = http.GET();
   if (code != HTTP_CODE_OK) {
@@ -504,7 +503,8 @@ bool updateWeatherData() {
   if (!geoCached) {
     if (!fetchGeolocation()) return false;   // always: sets utcOffset + fallback lat/lon
     if (config.city[0] != '\0') {
-      if (!fetchManualGeolocation()) return false;  // overrides lat/lon/name
+      if (!fetchManualGeolocation())
+        Serial.println("Geocoding failed — using IP-based location");
     }
     syncNTP();
     geoCached = true;
@@ -568,11 +568,14 @@ void setup() {
 
   if (WiFi.status() != WL_CONNECTED) {
     ledBlink(3, 300, 200);  // 3 long flashes = error
+    Serial.println("WiFi failed");
+    WiFi.disconnect(true);
     display.hibernate();
     if (config.deepSleepMins > 0) {
-      deepSleepRetry();   // never returns
+      deepSleepRetry();   // transient — retry after back-off, never returns
     } else {
       displayError("WiFi failed", config.wifiSsid);
+      // stay-awake: fall through to loop(); portal not reachable without WiFi
     }
     return;
   }
