@@ -224,7 +224,7 @@ void startConfigServer(Config& cfg) {
     bgServer->send(200, "text/html", buildPage(*bgCfg));
   });
 
-  bgServer->on("/save", HTTP_POST, []() {
+  bgServer->on("/", HTTP_POST, []() {
     applyFormArgs(*bgServer, *bgCfg);
     ConfigManager::save(*bgCfg);
     bgServer->send(200, "text/html", SAVED_HTML);
