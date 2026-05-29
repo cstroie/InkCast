@@ -166,6 +166,36 @@ bool isSevereWeather(int code) {
 // Display helpers
 // ---------------------------------------------------------------------------
 
+// drawChar() in Adafruit GFX truncates the codepoint to uint8_t, so Weather
+// Icons glyphs (0xF001–0xF0B6) render as garbage. This helper does the same
+// bitmap walk with proper uint16_t arithmetic.
+static void drawGlyph(int16_t x, int16_t y, uint16_t code,
+                      uint16_t color, const GFXfont* font) {
+  if (code < pgm_read_word(&font->first) || code > pgm_read_word(&font->last))
+    return;
+  uint16_t idx    = code - pgm_read_word(&font->first);
+  GFXglyph* glyph = (GFXglyph*)pgm_read_ptr(&font->glyph) + idx;
+  uint8_t* bitmap = (uint8_t*)pgm_read_ptr(&font->bitmap);
+
+  uint16_t bo = pgm_read_word(&glyph->bitmapOffset);
+  uint8_t  w  = pgm_read_byte(&glyph->width);
+  uint8_t  h  = pgm_read_byte(&glyph->height);
+  int8_t   xo = pgm_read_byte(&glyph->xOffset);
+  int8_t   yo = pgm_read_byte(&glyph->yOffset);
+
+  uint8_t bits = 0, bit = 0;
+  display.startWrite();
+  for (uint8_t yy = 0; yy < h; yy++) {
+    for (uint8_t xx = 0; xx < w; xx++) {
+      if (!bit) { bits = pgm_read_byte(&bitmap[bo++]); bit = 8; }
+      if (bits & 0x80) display.writePixel(x + xo + xx, y + yo + yy, color);
+      bits <<= 1;
+      bit--;
+    }
+  }
+  display.endWrite();
+}
+
 // Error screen: WI_NA icon in left column (red), message lines in right column,
 // optional footer line full-width at y=120 (built-in 6×8 font, like weather screen).
 void displayNetworkError(const char* line1, const char* line2 = nullptr,
@@ -180,12 +210,11 @@ void displayNetworkError(const char* line1, const char* line2 = nullptr,
   do {
     display.fillScreen(GxEPD_WHITE);
 
-    display.setFont(WI_FONT);
     {
-      const GFXglyph* g = &WI_FONT->glyph[WI_DAY_SUNNY - WI_FONT->first];
-      int16_t ix = ICON_CX - g->xAdvance / 2;
-      int16_t iy = ICON_CY - g->yOffset - (int16_t)g->height / 2;
-      display.drawChar(ix, iy, WI_NA, GxEPD_RED, GxEPD_WHITE, 1);
+      GFXglyph* g = (GFXglyph*)pgm_read_ptr(&WI_FONT->glyph) + (WI_NA - pgm_read_word(&WI_FONT->first));
+      int16_t ix = ICON_CX - pgm_read_byte(&g->xAdvance) / 2;
+      int16_t iy = ICON_CY - (int8_t)pgm_read_byte(&g->yOffset) - (int16_t)pgm_read_byte(&g->height) / 2;
+      drawGlyph(ix, iy, WI_NA, GxEPD_RED, WI_FONT);
     }
 
     // Device name — right-aligned, top row
@@ -278,12 +307,11 @@ void displayWeather() {
     display.fillScreen(GxEPD_WHITE);
 
     // Weather icon — centred in left column both horizontally and vertically
-    display.setFont(WI_FONT);
     {
-      const GFXglyph* g = &WI_FONT->glyph[currentIconCode - WI_FONT->first];
-      int16_t ix = ICON_CX - g->xAdvance / 2;
-      int16_t iy = ICON_CY - g->yOffset - (int16_t)g->height / 2;
-      display.drawChar(ix, iy, currentIconCode, iconColor, GxEPD_WHITE, 1);
+      GFXglyph* g = (GFXglyph*)pgm_read_ptr(&WI_FONT->glyph) + (currentIconCode - pgm_read_word(&WI_FONT->first));
+      int16_t ix = ICON_CX - pgm_read_byte(&g->xAdvance) / 2;
+      int16_t iy = ICON_CY - (int8_t)pgm_read_byte(&g->yOffset) - (int16_t)pgm_read_byte(&g->height) / 2;
+      drawGlyph(ix, iy, currentIconCode, iconColor, WI_FONT);
     }
 
     // City name — right-aligned, top row
@@ -325,13 +353,11 @@ void displayWeather() {
     display.print(rangeStr);
 
     // Line 3 — umbrellas (0–5), centred in right column
-    display.setFont(WI_SMALL_FONT);
-    display.setTextColor(GxEPD_BLACK);
     if (umbrellas > 0) {
       int totalW = umbrellas * 24 - 2;  // last glyph needs no trailing gap
       int x = COL + (display.width() - COL - totalW) / 2;
       for (int i = 0; i < umbrellas; i++) {
-        display.drawChar(x, 112, WI_UMBRELLA, GxEPD_BLACK, GxEPD_WHITE, 1);
+        drawGlyph(x, 112, WI_UMBRELLA, GxEPD_BLACK, WI_SMALL_FONT);
         x += 24;
       }
     }
