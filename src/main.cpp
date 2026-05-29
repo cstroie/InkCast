@@ -184,16 +184,14 @@ static void drawGlyph(int16_t x, int16_t y, uint16_t code,
   int8_t   yo = pgm_read_byte(&glyph->yOffset);
 
   uint8_t bits = 0, bit = 0;
-  display.startWrite();
   for (uint8_t yy = 0; yy < h; yy++) {
     for (uint8_t xx = 0; xx < w; xx++) {
       if (!bit) { bits = pgm_read_byte(&bitmap[bo++]); bit = 8; }
-      if (bits & 0x80) display.writePixel(x + xo + xx, y + yo + yy, color);
+      if (bits & 0x80) display.drawPixel(x + xo + xx, y + yo + yy, color);
       bits <<= 1;
       bit--;
     }
   }
-  display.endWrite();
 }
 
 // Error screen: WI_NA icon in left column (red), message lines in right column,
