@@ -21,7 +21,6 @@
 
 #include <WiFi.h>
 #include <HTTPClient.h>
-#include <WiFiClientSecure.h>
 #include <ArduinoJson.h>
 #include "weathericons.h"
 #include "config_manager.h"
@@ -47,9 +46,8 @@ static const int retryScheduleLen = (int)(sizeof(retrySchedule) / sizeof(retrySc
 // Timekeeping across deep sleep — stored in RTC memory
 // ---------------------------------------------------------------------------
 
-RTC_DATA_ATTR static time_t  rtcSavedTime   = 0;  // epoch saved just before sleep
-RTC_DATA_ATTR static uint32_t rtcSleepSecs  = 0;  // sleep duration in seconds
-RTC_DATA_ATTR static time_t  rtcLastNtpSync = 0;  // epoch of last NTP sync
+RTC_DATA_ATTR static time_t  rtcSavedTime  = 0;  // epoch saved just before sleep
+RTC_DATA_ATTR static uint32_t rtcSleepSecs = 0;  // sleep duration in seconds
 
 // ---------------------------------------------------------------------------
 // Geolocation cache — stored in RTC memory, survives deep sleep
@@ -374,29 +372,24 @@ bool fetchGeolocation() {
 
   Serial.printf("Location: %s  (%.4f, %.4f)  UTC+%lds\n",
                 currentLocation, cachedLat, cachedLon, cachedUtcOffset);
+  configTime(cachedUtcOffset, 0, nullptr);  // set TZ offset so getLocalTime() works; no NTP
   ledOff();
   return true;
 }
 
-void syncNTP() {
-  configTime(cachedUtcOffset, 0, "pool.ntp.org", "time.nist.gov");
-  Serial.print("NTP sync");
-  struct tm t;
-  int tries = 0;
-  while (!getLocalTime(&t) && tries++ < 20) {
-    ledOn(); delay(100); ledOff(); delay(400);  // fast blink = waiting for NTP
-    Serial.print(".");
-  }
-  ledOff();
-  Serial.println();
-  if (tries < 20) {
-    rtcLastNtpSync = time(nullptr);
-    Serial.printf("Time: %04d-%02d-%02d %02d:%02d:%02d\n",
-                  1900 + t.tm_year, t.tm_mon + 1, t.tm_mday,
-                  t.tm_hour, t.tm_min, t.tm_sec);
-  } else {
-    Serial.println("NTP sync failed");
-  }
+// Parse an HTTP Date header ("Fri, 29 May 2026 14:42:38 GMT") to a UTC epoch.
+// Uses the civil-days formula (Howard Hinnant) — no TZ side effects.
+static time_t parseHttpDate(const String& dateStr) {
+  struct tm t = {};
+  if (!strptime(dateStr.c_str(), "%a, %d %b %Y %H:%M:%S GMT", &t)) return 0;
+  int y = t.tm_year + 1900, m = t.tm_mon + 1, d = t.tm_mday;
+  y -= m <= 2;
+  int era = (y >= 0 ? y : y - 399) / 400;
+  int yoe = y - era * 400;
+  int doy = (153 * (m + (m > 2 ? -3 : 9)) + 2) / 5 + d - 1;
+  int doe = yoe * 365 + yoe / 4 - yoe / 100 + doy;
+  long days = (long)era * 146097 + doe - 719468;
+  return (time_t)(days * 86400L + t.tm_hour * 3600L + t.tm_min * 60L + t.tm_sec);
 }
 
 bool fetchWeatherData() {
@@ -416,12 +409,25 @@ bool fetchWeatherData() {
 
   HTTPClient http;
   http.begin(url);
+  const char* hdrs[] = {"Date"};
+  http.collectHeaders(hdrs, 1);
   int code = http.GET();
   if (code != HTTP_CODE_OK) {
     Serial.printf("Weather HTTP error: %d\n", code);
     http.end();
     ledOff();
     return false;
+  }
+
+  // Set system clock from the response Date header (UTC epoch + stored UTC offset)
+  String dateHdr = http.header("Date");
+  if (dateHdr.length() > 0) {
+    time_t utc = parseHttpDate(dateHdr);
+    if (utc > 0) {
+      struct timeval tv = { utc, 0 };
+      settimeofday(&tv, nullptr);
+      Serial.printf("Time from HTTP: %s\n", dateHdr.c_str());
+    }
   }
 
   String payload = http.getString();
@@ -498,7 +504,7 @@ bool fetchManualGeolocation() {
   return true;
 }
 
-// Geo + NTP on first call only; NTP re-synced once per day; weather every call.
+// Geo on first call only; time set from HTTP Date header on every weather fetch.
 bool updateWeatherData() {
   if (!geoCached) {
     if (!fetchGeolocation()) return false;   // always: sets utcOffset + fallback lat/lon
@@ -506,10 +512,7 @@ bool updateWeatherData() {
       if (!fetchManualGeolocation())
         Serial.println("Geocoding failed — using IP-based location");
     }
-    syncNTP();
     geoCached = true;
-  } else if (time(nullptr) - rtcLastNtpSync > 28800) {
-    syncNTP();
   }
   if (!fetchWeatherData()) return false;
   lastWeatherUpdate = millis();
