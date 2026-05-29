@@ -522,6 +522,7 @@ bool updateWeatherData() {
 
 void setup() {
   Serial.begin(115200);
+  SPI.begin(6, -1, 7, 10); // SCK, MISO (unused=-1), MOSI, CS
   randomSeed(esp_random());
 
   ConfigManager::load(config);
