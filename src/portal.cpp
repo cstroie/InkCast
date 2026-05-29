@@ -55,6 +55,17 @@ input:focus,select:focus{outline:none;border-color:#4a90d9;background:#fff}
 button{width:100%;padding:13px;background:#4a90d9;color:#fff;border:none;
        border-radius:8px;font-size:1rem;font-weight:600;cursor:pointer;margin-top:6px}
 button:active{background:#357abd}
+@media(prefers-color-scheme:dark){
+body{background:#0f1117;color:#e0e0e0}
+section{background:#1e2130;box-shadow:0 1px 4px rgba(0,0,0,.4)}
+h2{color:#666}
+span.lbl{color:#bbb}
+small{color:#666}
+input,select{background:#2a2d3e;border-color:#3a3d52;color:#e0e0e0}
+input:focus,select:focus{border-color:#4a90d9;background:#2e3148}
+button{background:#4a90d9}
+button:active{background:#357abd}
+}
 </style>
 </head>
 <body>
@@ -183,7 +194,9 @@ static const char SAVED_HTML[] =
   "<!DOCTYPE html><html><head>"
   "<link rel='icon' type='image/svg+xml' href='/favicon.svg'>"
   "<meta http-equiv='refresh' content='30;url=/'>"
-  "</head><body style='font-family:system-ui;padding:40px;text-align:center'>"
+  "<style>body{font-family:system-ui;padding:40px;text-align:center}"
+  "@media(prefers-color-scheme:dark){body{background:#0f1117;color:#e0e0e0}}</style>"
+  "</head><body>"
   "<h2>Saved!</h2><p>Rebooting&hellip;</p>"
   "<p style='color:#999;font-size:.9rem'>Redirecting to config in "
   "<span id='t'>30</span> s</p>"
