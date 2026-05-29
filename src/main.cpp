@@ -209,10 +209,10 @@ void displayNetworkError(const char* line1, const char* line2 = nullptr,
     display.fillScreen(GxEPD_WHITE);
 
     {
-      GFXglyph* g = (GFXglyph*)pgm_read_ptr(&WI_FONT->glyph) + (WI_NA - pgm_read_word(&WI_FONT->first));
+      GFXglyph* g = (GFXglyph*)pgm_read_ptr(&WI_FONT->glyph) + (WI_CLOUD_REFRESH - pgm_read_word(&WI_FONT->first));
       int16_t ix = ICON_CX - pgm_read_byte(&g->xAdvance) / 2;
       int16_t iy = ICON_CY - (int8_t)pgm_read_byte(&g->yOffset) - (int16_t)pgm_read_byte(&g->height) / 2;
-      drawGlyph(ix, iy, WI_NA, GxEPD_RED, WI_FONT);
+      drawGlyph(ix, iy, WI_CLOUD_REFRESH, GxEPD_RED, WI_FONT);
     }
 
     // Device name — right-aligned, top row
@@ -488,7 +488,7 @@ bool fetchWeatherData() {
   String url = "http://api.open-meteo.com/v1/forecast"
                "?latitude="  + String(cachedLat, 4) +
                "&longitude=" + String(cachedLon, 4) +
-               "&current=weather_code,temperature_2m"
+               "&current=weather_code,temperature_2m,is_day"
                "&daily=weather_code,temperature_2m_max,temperature_2m_min"
                ",precipitation_probability_max"
                "&timezone=auto&forecast_days=" + String(config.forecastDays) +
@@ -532,11 +532,12 @@ bool fetchWeatherData() {
   ledOff();
 
   currentTemp        = doc["current"]["temperature_2m"].as<float>();
+  bool isDay         = doc["current"]["is_day"].as<int>() != 0;
   currentWeatherCode = doc["daily"]["weather_code"][0];
   currentTempMax     = doc["daily"]["temperature_2m_max"][0];
   currentTempMin     = doc["daily"]["temperature_2m_min"][0];
   currentPrecipProb  = doc["daily"]["precipitation_probability_max"][0];
-  currentIconCode    = getIconCode(currentWeatherCode);
+  currentIconCode    = getIconCode(currentWeatherCode, isDay);
   currentTempUnit    = (config.tempUnits == 0) ? 'F' : 'C';
 
   // Parse current.time "YYYY-MM-DDTHH:MM" → date "DD.MM.YY" + hour/minute
