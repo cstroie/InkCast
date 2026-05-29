@@ -17,23 +17,23 @@
 
 #define WI_FONT        (&weathericons44pt8b)
 #define WI_SMALL_FONT  (&weathericons10pt8b)
-#define WI_UMBRELLA    ((unsigned char)0xF084)
 
 // Codepoints used
-#define WI_DAY_SUNNY     0xF00D
-#define WI_DAY_CLOUDY    0xF002
-#define WI_CLOUDY        0xF013
-#define WI_DAY_FOG       0xF001
-#define WI_FOG           0xF014
-#define WI_DAY_SPRINKLE  0xF003
-#define WI_DAY_RAIN      0xF008
-#define WI_SHOWERS       0xF009
-#define WI_DAY_SLEET     0xF0B2
-#define WI_DAY_SNOW      0xF00A
-#define WI_SNOW          0xF01B
-#define WI_HAIL          0xF015
-#define WI_THUNDERSTORM  0xF01E
-#define WI_NA            0xF07B
+#define WI_DAY_SUNNY     ((uint16_t)0xF00D)
+#define WI_DAY_CLOUDY    ((uint16_t)0xF002)
+#define WI_CLOUDY        ((uint16_t)0xF013)
+#define WI_DAY_FOG       ((uint16_t)0xF001)
+#define WI_FOG           ((uint16_t)0xF014)
+#define WI_DAY_SPRINKLE  ((uint16_t)0xF003)
+#define WI_DAY_RAIN      ((uint16_t)0xF008)
+#define WI_SHOWERS       ((uint16_t)0xF009)
+#define WI_DAY_SLEET     ((uint16_t)0xF0B2)
+#define WI_DAY_SNOW      ((uint16_t)0xF00A)
+#define WI_SNOW          ((uint16_t)0xF01B)
+#define WI_HAIL          ((uint16_t)0xF015)
+#define WI_THUNDERSTORM  ((uint16_t)0xF01E)
+#define WI_NA            ((uint16_t)0xF07B)
+#define WI_UMBRELLA      ((uint16_t)0xF084)
 
 // Returns the Weather Icons codepoint for a WMO weather code.
 // Returns WI_NA if the code is unknown.
