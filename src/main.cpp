@@ -631,8 +631,10 @@ void setup() {
     Serial.println("WiFi failed — opening AP for recovery");
 
     // Open AP alongside STA so the user can fix settings while we keep retrying.
+    WiFi.disconnect(false);      // stop STA connection attempt, keep stack alive
     WiFi.mode(WIFI_AP_STA);
     WiFi.softAP(apName);
+    delay(500);                  // let the AP interface fully initialise
     IPAddress apIP = WiFi.softAPIP();
 
     char ssidLine[64], apFooter[64];
@@ -648,8 +650,9 @@ void setup() {
     while (true) {
       handleConfigServer();
       if (millis() >= nextRetry) {
-        Serial.printf("Retrying WiFi (%s)...\n", config.wifiSsid);
+        Serial.printf("Retrying WiFi (%s)... AP=%s\n", config.wifiSsid, WiFi.softAPIP().toString().c_str());
         WiFi.begin(config.wifiSsid, config.wifiPassword);
+        delay(100);  // let STA start without disrupting AP
         for (int i = 0; i < 20 && WiFi.status() != WL_CONNECTED; i++) {
           handleConfigServer();
           delay(500);
