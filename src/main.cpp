@@ -165,9 +165,10 @@ bool isSevereWeather(int code) {
 // Display helpers
 // ---------------------------------------------------------------------------
 
-// Error screen: WI_NA icon in left column (red), message lines in right column.
-// Same two-column structure as the weather screen so it looks intentional.
-void displayNetworkError(const char* line1, const char* line2 = nullptr) {
+// Error screen: WI_NA icon in left column (red), message lines in right column,
+// optional footer line full-width at y=120 (built-in 6×8 font, like weather screen).
+void displayNetworkError(const char* line1, const char* line2 = nullptr,
+                         const char* footer = nullptr) {
   static const int COL     = 136;
   static const int ICON_CX = 68;
   static const int ICON_CY = 56;
@@ -188,7 +189,8 @@ void displayNetworkError(const char* line1, const char* line2 = nullptr) {
 
     int lineH  = 22;
     int lines  = 1 + (line2 ? 1 : 0);
-    int startY = (display.height() + lines * lineH) / 2 - (lines - 1) * lineH;
+    int areaH  = footer ? 108 : display.height();
+    int startY = (areaH + lines * lineH) / 2 - (lines - 1) * lineH;
 
     display.setFont(&FreeSansBold9pt7b);
     display.setTextColor(GxEPD_BLACK);
@@ -198,6 +200,15 @@ void displayNetworkError(const char* line1, const char* line2 = nullptr) {
       display.setFont(&FreeSans9pt7b);
       display.setCursor(COL + 4, startY + lineH);
       display.print(line2);
+    }
+
+    if (footer) {
+      display.setFont(NULL);
+      display.setTextSize(1);
+      int16_t fx, fy; uint16_t fw, fh;
+      display.getTextBounds(footer, 0, 0, &fx, &fy, &fw, &fh);
+      display.setCursor((display.width() - (int16_t)fw) / 2, 120);
+      display.print(footer);
     }
   } while (display.nextPage());
 }
@@ -616,16 +627,41 @@ void setup() {
   Serial.println();
 
   if (WiFi.status() != WL_CONNECTED) {
-    ledBlink(3, 300, 200);  // 3 long flashes = error
-    Serial.println("WiFi failed");
-    WiFi.disconnect(true);
-    if (!everDisplayed) displayNetworkError("WiFi failed", config.wifiSsid);
+    ledBlink(3, 300, 200);
+    Serial.println("WiFi failed — opening AP for recovery");
+
+    // Open AP alongside STA so the user can fix settings while we keep retrying.
+    WiFi.mode(WIFI_AP_STA);
+    WiFi.softAP(apName);
+    IPAddress apIP = WiFi.softAPIP();
+
+    char ssidLine[64], apFooter[64];
+    snprintf(ssidLine,  sizeof(ssidLine),  "SSID: %s", config.wifiSsid);
+    snprintf(apFooter,  sizeof(apFooter),  "%s | %s",  apName, apIP.toString().c_str());
+    displayNetworkError("WiFi failed", ssidLine, apFooter);
     display.hibernate();
-    if (config.deepSleepMins > 0) {
-      deepSleepRetry();   // transient — retry after back-off, never returns
+    ledOn();  // steady = portal active
+
+    startConfigServer(config);
+
+    unsigned long nextRetry = millis() + 30000UL;
+    while (true) {
+      handleConfigServer();
+      if (millis() >= nextRetry) {
+        Serial.printf("Retrying WiFi (%s)...\n", config.wifiSsid);
+        WiFi.begin(config.wifiSsid, config.wifiPassword);
+        for (int i = 0; i < 20 && WiFi.status() != WL_CONNECTED; i++) {
+          handleConfigServer();
+          delay(500);
+        }
+        if (WiFi.status() == WL_CONNECTED) {
+          Serial.println("WiFi recovered — restarting");
+          ESP.restart();
+        }
+        nextRetry = millis() + 30000UL;
+      }
+      delay(10);
     }
-    // stay-awake: fall through to loop() where ensureWiFiConnected() will retry
-    return;
   }
   Serial.printf("WiFi OK — %s\n", WiFi.localIP().toString().c_str());
 
