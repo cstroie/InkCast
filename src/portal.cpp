@@ -284,6 +284,7 @@ void startConfigServer(Config& cfg) {
 
   bgServer->onNotFound([]() {
     IPAddress ip = WiFi.localIP();
+    if (ip == IPAddress(0, 0, 0, 0)) ip = WiFi.softAPIP();
     bgServer->sendHeader("Location", String("http://") + ip.toString() + "/");
     bgServer->send(302, "text/plain", "");
   });

@@ -20,6 +20,7 @@
 #include "display.h"
 
 #include <WiFi.h>
+#include <DNSServer.h>
 #include <HTTPClient.h>
 #include <ArduinoJson.h>
 #include "weathericons.h"
@@ -646,14 +647,30 @@ void setup() {
 
     startConfigServer(config);
 
+    DNSServer dns;
+    dns.start(53, "*", apIP);
+
+    char lastSsid[sizeof(config.wifiSsid)];
+    strlcpy(lastSsid, config.wifiSsid, sizeof(lastSsid));
+
     unsigned long nextRetry = millis() + 30000UL;
     while (true) {
+      dns.processNextRequest();
       handleConfigServer();
+      // Refresh display if portal changed the SSID
+      if (strncmp(lastSsid, config.wifiSsid, sizeof(lastSsid)) != 0) {
+        strlcpy(lastSsid, config.wifiSsid, sizeof(lastSsid));
+        snprintf(ssidLine, sizeof(ssidLine), "SSID: %s", config.wifiSsid);
+        displayNetworkError("WiFi failed", ssidLine, apFooter);
+        display.hibernate();
+        nextRetry = millis() + 5000UL;  // retry sooner with new creds
+      }
       if (millis() >= nextRetry) {
-        Serial.printf("Retrying WiFi (%s)... AP=%s\n", config.wifiSsid, WiFi.softAPIP().toString().c_str());
+        Serial.printf("Retrying WiFi (%s)...\n", config.wifiSsid);
         WiFi.begin(config.wifiSsid, config.wifiPassword);
         delay(100);  // let STA start without disrupting AP
         for (int i = 0; i < 20 && WiFi.status() != WL_CONNECTED; i++) {
+          dns.processNextRequest();
           handleConfigServer();
           delay(500);
         }
