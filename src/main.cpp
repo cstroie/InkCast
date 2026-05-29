@@ -600,13 +600,29 @@ bool fetchWeatherData() {
   return true;
 }
 
+static String urlEncode(const char* s) {
+  String out;
+  while (*s) {
+    unsigned char c = (unsigned char)*s++;
+    if ((c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z') ||
+        (c >= '0' && c <= '9') || c == '-' || c == '_' || c == '.' || c == '~') {
+      out += (char)c;
+    } else {
+      char buf[4];
+      snprintf(buf, sizeof(buf), "%%%02X", c);
+      out += buf;
+    }
+  }
+  return out;
+}
+
 bool fetchManualGeolocation() {
   Serial.printf("Geocoding city: %s\n", config.city);
   ledOn();
   WiFiClient client;
   HTTPClient http;
   http.begin(client, "http://geocoding-api.open-meteo.com/v1/search?name="
-             + String(config.city) + "&count=1&language=en&format=json");
+             + urlEncode(config.city) + "&count=1&language=en&format=json");
   int code = http.GET();
   if (code != HTTP_CODE_OK) {
     Serial.printf("Geocoding HTTP error: %d\n", code);
