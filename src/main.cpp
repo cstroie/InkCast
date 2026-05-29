@@ -252,32 +252,74 @@ void displayNetworkError(const char* line1, const char* line2 = nullptr,
 
 // Show the config-portal SSID and instructions on screen.
 void displayPortalInfo(const char* apName) {
+  static const int COL     = 136;
+  static const int ICON_CX = 68;
+  static const int ICON_CY = 60;
+
+  // Build footer: "AP: <apName>  192.168.4.1"
+  char footer[64];
+  snprintf(footer, sizeof(footer), "AP: %s  192.168.4.1", apName);
+
   display.setRotation(1);
   display.setFullWindow();
   display.firstPage();
   do {
     display.fillScreen(GxEPD_WHITE);
-    display.setTextColor(GxEPD_BLACK);
 
+    // Icon — wi-refresh, black, centred in left column
+    {
+      GFXglyph* g = (GFXglyph*)pgm_read_ptr(&WI_FONT->glyph) + (WI_REFRESH - pgm_read_word(&WI_FONT->first));
+      int16_t ix = ICON_CX - pgm_read_byte(&g->xAdvance) / 2;
+      int16_t iy = ICON_CY - (int8_t)pgm_read_byte(&g->yOffset) - (int16_t)pgm_read_byte(&g->height) / 2;
+      drawGlyph(ix, iy, WI_REFRESH, GxEPD_BLACK, WI_FONT);
+    }
+
+    // App name — right-aligned, top row
     display.setFont(&FreeSansBold9pt7b);
-    display.setCursor(8, 20);
-    display.print("Setup mode");
-
-    display.setFont(&FreeSans9pt7b);
-    display.setCursor(8, 42);
-    display.print("Connect to WiFi network:");
-
-    display.setFont(&FreeSansBold9pt7b);
-    display.setTextColor(GxEPD_RED);
-    display.setCursor(8, 64);
-    display.print(apName);
-
-    display.setFont(&FreeSans9pt7b);
     display.setTextColor(GxEPD_BLACK);
-    display.setCursor(8, 86);
-    display.print("then open  192.168.4.1");
-    display.setCursor(8, 108);
-    display.print("in your browser");
+    {
+      int16_t cx, cy; uint16_t cw, ch;
+      char label[] = "InkCast";
+      display.getTextBounds(label, 0, 0, &cx, &cy, &cw, &ch);
+      display.setCursor(display.width() - (int16_t)cw - 2, 16);
+      display.print(label);
+    }
+
+    // Instruction lines in right column, centred vertically above footer
+    static const char* lines[] = {
+      "Setup mode",
+      "Connect to WiFi:",
+      apName,
+    };
+    static const int nLines = 3;
+    static const int lineH  = 22;
+    int areaH  = 108;  // leave room for footer at y=120
+    int startY = (areaH + nLines * lineH) / 2 - (nLines - 1) * lineH;
+
+    for (int i = 0; i < nLines; i++) {
+      if (i == 0)
+        display.setFont(&FreeSansBold9pt7b);
+      else if (i == 2) {
+        display.setFont(&FreeSansBold9pt7b);
+        display.setTextColor(GxEPD_RED);
+      } else {
+        display.setFont(&FreeSans9pt7b);
+        display.setTextColor(GxEPD_BLACK);
+      }
+      display.setCursor(COL + 4, startY + i * lineH);
+      display.print(lines[i]);
+    }
+
+    // Footer
+    display.setFont(NULL);
+    display.setTextSize(1);
+    display.setTextColor(GxEPD_BLACK);
+    {
+      int16_t fx, fy; uint16_t fw, fh;
+      display.getTextBounds(footer, 0, 0, &fx, &fy, &fw, &fh);
+      display.setCursor((display.width() - (int16_t)fw) / 2, 120);
+      display.print(footer);
+    }
   } while (display.nextPage());
 }
 

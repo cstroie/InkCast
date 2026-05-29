@@ -47,6 +47,7 @@
 // Neutral / special
 #define WI_NA            ((uint16_t)0xF07B)  // wi-na
 #define WI_CLOUD_REFRESH ((uint16_t)0xF03E)  // wi-cloud-refresh
+#define WI_REFRESH       ((uint16_t)0xF04C)  // wi-refresh
 #define WI_UMBRELLA      ((uint16_t)0xF084)  // wi-umbrella
 
 // Returns the Weather Icons codepoint for a WMO weather code.
