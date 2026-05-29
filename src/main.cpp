@@ -46,8 +46,9 @@ static const int retryScheduleLen = (int)(sizeof(retrySchedule) / sizeof(retrySc
 // Timekeeping across deep sleep — stored in RTC memory
 // ---------------------------------------------------------------------------
 
-RTC_DATA_ATTR static time_t  rtcSavedTime  = 0;  // epoch saved just before sleep
-RTC_DATA_ATTR static uint32_t rtcSleepSecs = 0;  // sleep duration in seconds
+RTC_DATA_ATTR static time_t   rtcSavedTime  = 0;     // epoch saved just before sleep
+RTC_DATA_ATTR static uint32_t rtcSleepSecs  = 0;     // sleep duration in seconds
+RTC_DATA_ATTR static bool     everDisplayed = false;  // true once weather has been shown
 
 // ---------------------------------------------------------------------------
 // Geolocation cache — stored in RTC memory, survives deep sleep
@@ -164,23 +165,40 @@ bool isSevereWeather(int code) {
 // Display helpers
 // ---------------------------------------------------------------------------
 
-// Show up to three lines of error text, red, vertically centred.
-void displayError(const char* line1, const char* line2 = nullptr, const char* line3 = nullptr) {
-  int lines  = 1 + (line2 ? 1 : 0) + (line3 ? 1 : 0);
-  int lineH  = 22;
-  int startY = (display.height() + lines * lineH) / 2 - (lines - 1) * lineH;
+// Error screen: WI_NA icon in left column (red), message lines in right column.
+// Same two-column structure as the weather screen so it looks intentional.
+void displayNetworkError(const char* line1, const char* line2 = nullptr) {
+  static const int COL     = 136;
+  static const int ICON_CX = 68;
+  static const int ICON_CY = 56;
 
   display.setRotation(1);
   display.setFullWindow();
   display.firstPage();
   do {
     display.fillScreen(GxEPD_WHITE);
+
+    display.setFont(WI_FONT);
+    {
+      const GFXglyph* g = &WI_FONT->glyph[WI_NA - WI_FONT->first];
+      int16_t ix = ICON_CX - g->xAdvance / 2;
+      int16_t iy = ICON_CY - g->yOffset - (int16_t)g->height / 2;
+      display.drawChar(ix, iy, WI_NA, GxEPD_RED, GxEPD_WHITE, 1);
+    }
+
+    int lineH  = 22;
+    int lines  = 1 + (line2 ? 1 : 0);
+    int startY = (display.height() + lines * lineH) / 2 - (lines - 1) * lineH;
+
     display.setFont(&FreeSansBold9pt7b);
-    display.setTextColor(GxEPD_RED);
-    display.setCursor(8, startY);
+    display.setTextColor(GxEPD_BLACK);
+    display.setCursor(COL + 4, startY);
     display.print(line1);
-    if (line2) { display.setCursor(8, startY + lineH);     display.print(line2); }
-    if (line3) { display.setCursor(8, startY + lineH * 2); display.print(line3); }
+    if (line2) {
+      display.setFont(&FreeSans9pt7b);
+      display.setCursor(COL + 4, startY + lineH);
+      display.print(line2);
+    }
   } while (display.nextPage());
 }
 
@@ -216,6 +234,7 @@ void displayPortalInfo(const char* apName) {
 }
 
 void displayWeather() {
+  everDisplayed = true;
   static const int COL     = 136;  // 132px max icon width + 2px margin each side
   static const int ICON_CX = 68;   // horizontal centre of left icon column
   static const int ICON_CY = 60;   // vertical centre (footer at y=120 → mid = 60)
@@ -600,13 +619,12 @@ void setup() {
     ledBlink(3, 300, 200);  // 3 long flashes = error
     Serial.println("WiFi failed");
     WiFi.disconnect(true);
+    if (!everDisplayed) displayNetworkError("WiFi failed", config.wifiSsid);
     display.hibernate();
     if (config.deepSleepMins > 0) {
       deepSleepRetry();   // transient — retry after back-off, never returns
-    } else {
-      displayError("WiFi failed", config.wifiSsid);
-      // stay-awake: fall through to loop(); portal not reachable without WiFi
     }
+    // stay-awake: fall through to loop() where ensureWiFiConnected() will retry
     return;
   }
   Serial.printf("WiFi OK — %s\n", WiFi.localIP().toString().c_str());
@@ -629,6 +647,7 @@ void setup() {
     displayWeather();
   } else {
     ledBlink(3, 300, 200);
+    if (!everDisplayed) displayNetworkError("No weather data", "Check connection");
     if (config.deepSleepMins > 0) {
       display.hibernate();
       deepSleepRetry();   // never returns
