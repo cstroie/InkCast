@@ -172,7 +172,7 @@ void displayNetworkError(const char* line1, const char* line2 = nullptr,
                          const char* footer = nullptr) {
   static const int COL     = 136;
   static const int ICON_CX = 68;
-  static const int ICON_CY = 56;
+  static const int ICON_CY = 60;
 
   display.setRotation(1);
   display.setFullWindow();
@@ -182,11 +182,20 @@ void displayNetworkError(const char* line1, const char* line2 = nullptr,
 
     display.setFont(WI_FONT);
     {
-      const GFXglyph* g = &WI_FONT->glyph[WI_NA - WI_FONT->first];
+      const GFXglyph* g = &WI_FONT->glyph[WI_DAY_SUNNY - WI_FONT->first];
       int16_t ix = ICON_CX - g->xAdvance / 2;
       int16_t iy = ICON_CY - g->yOffset - (int16_t)g->height / 2;
       display.drawChar(ix, iy, WI_NA, GxEPD_RED, GxEPD_WHITE, 1);
     }
+
+    // Device name — right-aligned, top row
+    display.setFont(&FreeSansBold9pt7b);
+    display.setTextColor(GxEPD_BLACK);
+    int16_t cx, cy; uint16_t cw, ch;
+    char apName[] = "InkCast";
+    display.getTextBounds(apName, 0, 0, &cx, &cy, &cw, &ch);
+    display.setCursor(display.width() - (int16_t)cw - 2, 16);
+    display.print(apName);
 
     int lineH  = 22;
     int lines  = 1 + (line2 ? 1 : 0);
@@ -632,7 +641,8 @@ void setup() {
     Serial.println("WiFi failed — opening AP for recovery");
 
     // Open AP alongside STA so the user can fix settings while we keep retrying.
-    WiFi.disconnect(false);      // stop STA connection attempt, keep stack alive
+    WiFi.setAutoReconnect(false);  // prevent background reconnect storms disrupting AP
+    WiFi.disconnect(false);        // stop current STA attempt, keep stack alive
     WiFi.mode(WIFI_AP_STA);
     WiFi.softAP(apName);
     delay(500);                  // let the AP interface fully initialise
