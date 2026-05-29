@@ -340,6 +340,24 @@ void displayWeather() {
 // Data fetching
 // ---------------------------------------------------------------------------
 
+static bool ensureWiFiConnected() {
+  if (WiFi.status() == WL_CONNECTED) return true;
+  Serial.printf("WiFi reconnecting to %s", config.wifiSsid);
+  WiFi.begin(config.wifiSsid, config.wifiPassword);
+  int tries = 0;
+  while (WiFi.status() != WL_CONNECTED && tries++ < 20) {
+    ledOn(); delay(250); ledOff(); delay(250);
+    Serial.print(".");
+  }
+  Serial.println();
+  if (WiFi.status() != WL_CONNECTED) {
+    Serial.println("WiFi reconnect failed");
+    return false;
+  }
+  Serial.printf("WiFi reconnected — %s\n", WiFi.localIP().toString().c_str());
+  return true;
+}
+
 bool fetchGeolocation() {
   Serial.println("Fetching geolocation...");
   ledOn();  // steady = network busy
@@ -372,7 +390,14 @@ bool fetchGeolocation() {
 
   Serial.printf("Location: %s  (%.4f, %.4f)  UTC+%lds\n",
                 currentLocation, cachedLat, cachedLon, cachedUtcOffset);
-  configTime(cachedUtcOffset, 0, nullptr);  // set TZ offset so getLocalTime() works; no NTP
+  // Build a POSIX TZ string from the UTC offset so getLocalTime() returns local time.
+  // POSIX sign is inverted: "UTC-1" means UTC+1.  Handles sub-hour offsets (e.g. India UTC+5:30).
+  long m = (abs(cachedUtcOffset) % 3600) / 60;
+  char tzStr[16];
+  if (m) snprintf(tzStr, sizeof(tzStr), "UTC%+ld:%02ld", -(cachedUtcOffset / 3600), m);
+  else   snprintf(tzStr, sizeof(tzStr), "UTC%+ld",        -(cachedUtcOffset / 3600));
+  setenv("TZ", tzStr, 1);
+  tzset();
   ledOff();
   return true;
 }
@@ -506,6 +531,7 @@ bool fetchManualGeolocation() {
 
 // Geo on first call only; time set from HTTP Date header on every weather fetch.
 bool updateWeatherData() {
+  if (!ensureWiFiConnected()) return false;
   if (!geoCached) {
     if (!fetchGeolocation()) return false;   // always: sets utcOffset + fallback lat/lon
     if (config.city[0] != '\0') {
