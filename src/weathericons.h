@@ -79,6 +79,7 @@
 #define WI_NIGHT_CLOUDY_HIGH           ((uint16_t)0xF080)  // wi-night-cloudy-high
 #define WI_NIGHT_ALT_PARTLY_CLOUDY     ((uint16_t)0xF081)  // wi-night-alt-partly-cloudy
 #define WI_NIGHT_PARTLY_CLOUDY         ((uint16_t)0xF083)  // wi-night-partly-cloudy
+#define WI_NIGHT_FOG                   ((uint16_t)0xF04A)  // wi-night-fog
 #define WI_NIGHT_ALT_CLOUDY            ((uint16_t)0xF086)  // wi-night-alt-cloudy
 #define WI_NIGHT_ALT_SLEET             ((uint16_t)0xF0B4)  // wi-night-alt-sleet
 #define WI_NIGHT_SLEET                 ((uint16_t)0xF0B3)  // wi-night-sleet
