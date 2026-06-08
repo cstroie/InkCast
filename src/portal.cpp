@@ -55,6 +55,16 @@ input:focus,select:focus{outline:none;border-color:#4a90d9;background:#fff}
 button{width:100%;padding:13px;background:#4a90d9;color:#fff;border:none;
        border-radius:8px;font-size:1rem;font-weight:600;cursor:pointer;margin-top:6px}
 button:active{background:#357abd}
+.wrow{display:flex;align-items:center;justify-content:space-between;padding:6px 0;
+      border-bottom:1px solid #f0f0f0}
+.wrow:last-child{border-bottom:none}
+.wrow span{font-size:.9rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1}
+.del{width:auto;padding:4px 10px;background:#d44;border-radius:6px;font-size:.85rem;
+     font-weight:600;margin:0;flex-shrink:0;margin-left:8px}
+.del:active{background:#b33}
+.cnt{font-size:.78rem;color:#aaa;margin-bottom:8px}
+#ss{font-size:.78rem;color:#aaa;margin-top:4px}
+#sr{display:none;margin-top:6px;cursor:pointer}
 @media(prefers-color-scheme:dark){
 body{background:#0f1117;color:#e0e0e0}
 section{background:#1e2130;box-shadow:0 1px 4px rgba(0,0,0,.4)}
@@ -65,24 +75,22 @@ input,select{background:#2a2d3e;border-color:#3a3d52;color:#e0e0e0}
 input:focus,select:focus{border-color:#4a90d9;background:#2e3148}
 button{background:#4a90d9}
 button:active{background:#357abd}
+.wrow{border-bottom-color:#2a2d3e}
+#sr{background:#2a2d3e;border-color:#3a3d52;color:#e0e0e0}
 }
 </style>
 </head>
 <body>
 <h1>InkCast Setup</h1>
-<form method="POST" action="/">
 
 <section>
-<h2>WiFi</h2>
-<label>
-  <span class="lbl">Network name (SSID)</span>
-  <input name="ssid" value="%SSID%" required autocomplete="off">
-</label>
-<label>
-  <span class="lbl">Password</span>
-  <input name="pass" type="password" value="%PASS%" autocomplete="off">
-</label>
+<h2>WiFi networks</h2>
+<p class="cnt">%WIFI_COUNT% / %WIFI_MAX% networks saved</p>
+%WIFI_LIST%
+%WIFI_ADD_FORM%
 </section>
+
+<form method="POST" action="/">
 
 <section>
 <h2>Weather</h2>
@@ -131,6 +139,28 @@ button:active{background:#357abd}
 
 <button type="submit">Save &amp; Restart</button>
 </form>
+<script>
+function scanWifi(){
+  var btn=document.getElementById('sb'),st=document.getElementById('ss'),sr=document.getElementById('sr');
+  btn.disabled=true;btn.textContent='Scanning…';
+  st.textContent='';sr.style.display='none';sr.innerHTML='';
+  fetch('/wifi/scan').then(function(r){return r.json();}).then(function(d){
+    btn.disabled=false;btn.textContent='Scan for networks';
+    if(!d.length){st.textContent='No networks found.';return;}
+    d.forEach(function(s){var o=document.createElement('option');o.value=s;o.textContent=s;sr.appendChild(o);});
+    sr.size=Math.min(d.length,6);sr.style.display='block';
+    st.textContent=d.length+' network'+(d.length===1?'':'s')+' found — tap to select';
+  }).catch(function(){btn.disabled=false;btn.textContent='Scan for networks';st.textContent='Scan failed.';});
+}
+function addWifi(){
+  var s=document.getElementById('ns').value.trim();
+  var p=document.getElementById('np').value;
+  if(!s)return;
+  fetch('/wifi/add',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},
+    body:'ssid='+encodeURIComponent(s)+'&pass='+encodeURIComponent(p)})
+  .then(function(){location.reload();});
+}
+</script>
 </body>
 </html>)html";
 
@@ -149,12 +179,42 @@ bool configServerPageServed() {
 static const int INTERVALS[] = {15, 30, 45, 60, 120, 240, 360, 720, 1440};
 static const int INTERVALS_N = sizeof(INTERVALS) / sizeof(INTERVALS[0]);
 
+static String buildWifiList(const Config& cfg) {
+  if (cfg.wifiCount == 0) return "<p style='font-size:.85rem;color:#aaa'>No networks saved yet.</p>";
+  String s;
+  for (int i = 0; i < cfg.wifiCount; i++) {
+    s += "<div class='wrow'><span>";
+    s += String(cfg.wifi[i].ssid);
+    s += "</span><form method='POST' action='/wifi/del' style='display:inline'>"
+         "<input type='hidden' name='idx' value='";
+    s += String(i);
+    s += "'><button class='del' type='submit'>&#x2715;</button></form></div>";
+  }
+  return s;
+}
+
+static String buildAddForm(const Config& cfg) {
+  if (cfg.wifiCount >= WIFI_MAX) return "<p style='font-size:.85rem;color:#aaa'>Maximum 5 networks reached.</p>";
+  return "<div style='margin-top:12px'>"
+         "<label><span class='lbl'>Network (SSID)</span>"
+         "<input id='ns' autocomplete='off' placeholder='Type or select from scan'></label>"
+         "<label style='margin-top:8px'><span class='lbl'>Password</span>"
+         "<input id='np' type='password' autocomplete='off'></label>"
+         "<button type='button' onclick='addWifi()' style='margin-top:8px'>Add network</button>"
+         "<select id='sr' onchange='document.getElementById(\"ns\").value=this.value;this.selectedIndex=-1'></select>"
+         "<p id='ss'></p>"
+         "<button type='button' id='sb' onclick='scanWifi()' style='margin-top:4px'>Scan for networks</button>"
+         "</div>";
+}
+
 static String buildPage(const Config& cfg) {
   String html;
-  html.reserve(3500);
+  html.reserve(4000);
   html = FPSTR(HTML);
-  html.replace("%SSID%",   String(cfg.wifiSsid));
-  html.replace("%PASS%",   String(cfg.wifiPassword));
+  html.replace("%WIFI_COUNT%", String(cfg.wifiCount));
+  html.replace("%WIFI_MAX%",   String(WIFI_MAX));
+  html.replace("%WIFI_LIST%",  buildWifiList(cfg));
+  html.replace("%WIFI_ADD_FORM%", buildAddForm(cfg));
   html.replace("%CITY%",   String(cfg.city));
   html.replace("%SEL_C%",  cfg.tempUnits == 1 ? " selected" : "");
   html.replace("%SEL_F%",  cfg.tempUnits == 0 ? " selected" : "");
@@ -174,10 +234,6 @@ static String buildPage(const Config& cfg) {
 }
 
 static void applyFormArgs(WebServer& server, Config& cfg) {
-  if (server.hasArg("ssid"))
-    strlcpy(cfg.wifiSsid,     server.arg("ssid").c_str(), sizeof(cfg.wifiSsid));
-  if (server.hasArg("pass"))
-    strlcpy(cfg.wifiPassword, server.arg("pass").c_str(), sizeof(cfg.wifiPassword));
   strlcpy(cfg.city, server.arg("city").c_str(), sizeof(cfg.city));
   cfg.tempUnits    = server.arg("units").toInt();
   cfg.forecastDays = constrain(server.arg("fdays").toInt(), 1, 7);
@@ -188,6 +244,59 @@ static void applyFormArgs(WebServer& server, Config& cfg) {
   cfg.deepSleepMins  = server.hasArg("sleep") ? cfg.updateInterval : -1;
   cfg.buttonPin      = server.arg("btn").toInt();
   cfg.ledPin         = server.arg("led").toInt();
+}
+
+// Handle POST /wifi/add — add a network to cfg and save; redirect to /
+static void handleWifiAdd(WebServer& server, Config& cfg) {
+  String ssid = server.arg("ssid");
+  ssid.trim();
+  if (ssid.length() == 0 || cfg.wifiCount >= WIFI_MAX) {
+    server.sendHeader("Location", "/");
+    server.send(303, "text/plain", " ");
+    return;
+  }
+  // Reject duplicate SSID
+  for (int i = 0; i < cfg.wifiCount; i++) {
+    if (ssid == cfg.wifi[i].ssid) {
+      server.sendHeader("Location", "/");
+      server.send(303, "text/plain", " ");
+      return;
+    }
+  }
+  strlcpy(cfg.wifi[cfg.wifiCount].ssid, ssid.c_str(), sizeof(cfg.wifi[0].ssid));
+  strlcpy(cfg.wifi[cfg.wifiCount].pass, server.arg("pass").c_str(), sizeof(cfg.wifi[0].pass));
+  cfg.wifiCount++;
+  ConfigManager::save(cfg);
+  server.sendHeader("Location", "/");
+  server.send(303, "text/plain", " ");
+}
+
+// Handle POST /wifi/del — remove network by idx, compact, save; redirect to /
+static void handleWifiDel(WebServer& server, Config& cfg) {
+  int idx = server.arg("idx").toInt();
+  if (idx >= 0 && idx < cfg.wifiCount) {
+    for (int i = idx; i < cfg.wifiCount - 1; i++)
+      cfg.wifi[i] = cfg.wifi[i + 1];
+    cfg.wifiCount--;
+  }
+  ConfigManager::save(cfg);
+  server.sendHeader("Location", "/");
+  server.send(303, "text/plain", " ");
+}
+
+// Handle GET /wifi/scan — return JSON array of visible SSIDs
+static void handleWifiScan(WebServer& server) {
+  int n = WiFi.scanNetworks(/*async=*/false, /*show_hidden=*/false);
+  String json = "[";
+  for (int i = 0; i < n && n > 0; i++) {
+    if (i > 0) json += ",";
+    String s = WiFi.SSID(i);
+    s.replace("\\", "\\\\"); s.replace("\"", "\\\"");
+    json += "\"" + s + "\"";
+  }
+  json += "]";
+  WiFi.scanDelete();
+  server.send(200, "application/json", json);
 }
 
 static const char SAVED_HTML[] =
@@ -230,6 +339,10 @@ void runConfigPortal(Config& cfg, const char* apName) {
     delay(1500);
     ESP.restart();
   });
+
+  server.on("/wifi/add", HTTP_POST, [&]() { handleWifiAdd(server, cfg); });
+  server.on("/wifi/del", HTTP_POST, [&]() { handleWifiDel(server, cfg); });
+  server.on("/wifi/scan", HTTP_GET, [&]() { handleWifiScan(server); });
 
   auto serveFavicon = [&]() {
     server.send_P(200, "image/svg+xml", FAVICON);
@@ -278,6 +391,10 @@ void startConfigServer(Config& cfg) {
     delay(1500);
     ESP.restart();
   });
+
+  bgServer->on("/wifi/add",  HTTP_POST, []() { handleWifiAdd(*bgServer, *bgCfg); });
+  bgServer->on("/wifi/del",  HTTP_POST, []() { handleWifiDel(*bgServer, *bgCfg); });
+  bgServer->on("/wifi/scan", HTTP_GET,  []() { handleWifiScan(*bgServer); });
 
   bgServer->on("/favicon.svg", HTTP_GET, []() { bgServer->send_P(200, "image/svg+xml", FAVICON); });
   bgServer->on("/favicon.ico", HTTP_GET, []() { bgServer->send_P(200, "image/svg+xml", FAVICON); });

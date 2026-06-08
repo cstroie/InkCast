@@ -446,21 +446,67 @@ void displayWeather() {
 // Data fetching
 // ---------------------------------------------------------------------------
 
+// Try each configured network, preferring those visible in a scan.
+// Returns true when connected.
+static bool connectWiFi() {
+  if (config.wifiCount == 0) return false;
+
+  int scanCount = WiFi.scanNetworks(/*async=*/false, /*show_hidden=*/false);
+
+  // Find best RSSI for each stored network in scan results
+  int32_t rssiOf[WIFI_MAX];
+  bool    inRange[WIFI_MAX];
+  for (int i = 0; i < config.wifiCount; i++) {
+    rssiOf[i]  = -999;
+    inRange[i] = false;
+    for (int s = 0; s < scanCount && scanCount > 0; s++) {
+      if (WiFi.SSID(s) == config.wifi[i].ssid) {
+        if (WiFi.RSSI(s) > rssiOf[i]) rssiOf[i] = WiFi.RSSI(s);
+        inRange[i] = true;
+      }
+    }
+  }
+  WiFi.scanDelete();
+
+  // Build attempt order: in-range networks by RSSI desc, then out-of-range in stored order
+  int  order[WIFI_MAX], orderN = 0;
+  bool used[WIFI_MAX]  = {};
+  while (true) {
+    int best = -1;
+    for (int i = 0; i < config.wifiCount; i++)
+      if (!used[i] && inRange[i] && (best == -1 || rssiOf[i] > rssiOf[best])) best = i;
+    if (best == -1) break;
+    order[orderN++] = best; used[best] = true;
+  }
+  for (int i = 0; i < config.wifiCount; i++)
+    if (!used[i]) order[orderN++] = i;
+
+  for (int c = 0; c < orderN; c++) {
+    int i = order[c];
+    Serial.printf("WiFi trying \"%s\"%s\n", config.wifi[i].ssid, inRange[i] ? "" : " (not in scan)");
+    WiFi.begin(config.wifi[i].ssid, config.wifi[i].pass);
+    for (int t = 0; t < 20 && WiFi.status() != WL_CONNECTED; t++) {
+      ledOn(); delay(250); ledOff(); delay(250);
+      Serial.print(".");
+    }
+    Serial.println();
+    if (WiFi.status() == WL_CONNECTED) {
+      Serial.printf("WiFi connected: \"%s\" — %s\n", config.wifi[i].ssid, WiFi.localIP().toString().c_str());
+      return true;
+    }
+    WiFi.disconnect(false);
+    delay(100);
+  }
+  return false;
+}
+
 static bool ensureWiFiConnected() {
   if (WiFi.status() == WL_CONNECTED) return true;
-  Serial.printf("WiFi reconnecting to %s", config.wifiSsid);
-  WiFi.begin(config.wifiSsid, config.wifiPassword);
-  int tries = 0;
-  while (WiFi.status() != WL_CONNECTED && tries++ < 20) {
-    ledOn(); delay(250); ledOff(); delay(250);
-    Serial.print(".");
-  }
-  Serial.println();
-  if (WiFi.status() != WL_CONNECTED) {
+  Serial.println("WiFi disconnected, reconnecting...");
+  if (!connectWiFi()) {
     Serial.println("WiFi reconnect failed");
     return false;
   }
-  Serial.printf("WiFi reconnected — %s\n", WiFi.localIP().toString().c_str());
   return true;
 }
 
@@ -709,17 +755,9 @@ void setup() {
   }
 
   // Connect to WiFi
-  Serial.printf("Connecting to %s", config.wifiSsid);
+  Serial.printf("Connecting to %d configured network(s)...\n", config.wifiCount);
   WiFi.setHostname(apName);
-  WiFi.begin(config.wifiSsid, config.wifiPassword);
-  int tries = 0;
-  while (WiFi.status() != WL_CONNECTED && tries++ < 20) {
-    ledOn(); delay(250); ledOff(); delay(250);  // slow blink = connecting
-    Serial.print(".");
-  }
-  Serial.println();
-
-  if (WiFi.status() != WL_CONNECTED) {
+  if (!connectWiFi()) {
     ledBlink(3, 300, 200);
     Serial.println("WiFi failed — opening AP for recovery");
 
@@ -731,10 +769,10 @@ void setup() {
     delay(500);                  // let the AP interface fully initialise
     IPAddress apIP = WiFi.softAPIP();
 
-    char ssidLine[64], apFooter[64];
-    snprintf(ssidLine,  sizeof(ssidLine),  "SSID: %s", config.wifiSsid);
+    char netLine[64], apFooter[64];
+    snprintf(netLine,   sizeof(netLine),   "WiFi: %d/%d networks", config.wifiCount, WIFI_MAX);
     snprintf(apFooter,  sizeof(apFooter),  "%s | %s",  apName, apIP.toString().c_str());
-    displayNetworkError("WiFi failed", ssidLine, apFooter);
+    displayNetworkError("WiFi failed", netLine, apFooter);
     display.hibernate();
     ledOn();  // steady = portal active
 
@@ -743,31 +781,36 @@ void setup() {
     DNSServer dns;
     dns.start(53, "*", apIP);
 
-    char lastSsid[sizeof(config.wifiSsid)];
-    strlcpy(lastSsid, config.wifiSsid, sizeof(lastSsid));
+    int lastWifiCount = config.wifiCount;
 
     unsigned long nextRetry = millis() + 30000UL;
     while (true) {
       dns.processNextRequest();
       handleConfigServer();
-      // Refresh display if portal changed the SSID
-      if (strncmp(lastSsid, config.wifiSsid, sizeof(lastSsid)) != 0) {
-        strlcpy(lastSsid, config.wifiSsid, sizeof(lastSsid));
-        snprintf(ssidLine, sizeof(ssidLine), "SSID: %s", config.wifiSsid);
-        displayNetworkError("WiFi failed", ssidLine, apFooter);
+      // Refresh display and retry sooner if user added/removed a network
+      if (config.wifiCount != lastWifiCount) {
+        lastWifiCount = config.wifiCount;
+        snprintf(netLine, sizeof(netLine), "WiFi: %d/%d networks", config.wifiCount, WIFI_MAX);
+        displayNetworkError("WiFi failed", netLine, apFooter);
         display.hibernate();
-        nextRetry = millis() + 5000UL;  // retry sooner with new creds
+        nextRetry = millis() + 5000UL;
       }
       if (millis() >= nextRetry) {
-        Serial.printf("Retrying WiFi (%s)...\n", config.wifiSsid);
-        WiFi.begin(config.wifiSsid, config.wifiPassword);
-        delay(100);  // let STA start without disrupting AP
-        for (int i = 0; i < 20 && WiFi.status() != WL_CONNECTED; i++) {
-          dns.processNextRequest();
-          handleConfigServer();
-          delay(500);
+        Serial.printf("Retrying WiFi (%d networks)...\n", config.wifiCount);
+        // Attempt each configured network in turn; service portal/DNS between tries
+        bool recovered = false;
+        for (int ni = 0; ni < config.wifiCount && !recovered; ni++) {
+          WiFi.begin(config.wifi[ni].ssid, config.wifi[ni].pass);
+          delay(100);  // let STA start without disrupting AP
+          for (int i = 0; i < 20 && WiFi.status() != WL_CONNECTED; i++) {
+            dns.processNextRequest();
+            handleConfigServer();
+            delay(500);
+          }
+          if (WiFi.status() == WL_CONNECTED) recovered = true;
+          else { WiFi.disconnect(false); delay(100); }
         }
-        if (WiFi.status() == WL_CONNECTED) {
+        if (recovered) {
           Serial.println("WiFi recovered — restarting");
           ESP.restart();
         }

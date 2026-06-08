@@ -7,9 +7,16 @@
 #include <Arduino.h>
 #include <Preferences.h>
 
+#define WIFI_MAX 5
+
+struct WiFiCredential {
+  char ssid[64];
+  char pass[64];
+};
+
 struct Config {
-  char  wifiSsid[64];
-  char  wifiPassword[64];
+  WiFiCredential wifi[WIFI_MAX]; // stored networks, 0..wifiCount-1 are valid
+  int   wifiCount;               // number of configured networks
   char  city[64];         // manual city override; empty = auto via ip-api.com
   int   tempUnits;        // 0 = Fahrenheit, 1 = Celsius
   int   forecastDays;     // 1–7
