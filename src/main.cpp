@@ -77,6 +77,57 @@ static int  currentReportHour       = -1;  // local hour from current.time
 static int  currentReportMin        = -1;  // local minute from current.time
 static unsigned long lastWeatherUpdate = 0;
 
+// CRC32 hash of last displayed weather — survives deep sleep
+RTC_DATA_ATTR static uint32_t lastWeatherHash = 0;
+
+// ---------------------------------------------------------------------------
+// Weather hash helpers
+// ---------------------------------------------------------------------------
+
+static uint32_t crc32buf(const void* data, size_t len) {
+  const uint8_t* p = (const uint8_t*)data;
+  uint32_t crc = 0xFFFFFFFF;
+  while (len--) {
+    crc ^= *p++;
+    for (int i = 0; i < 8; i++)
+      crc = (crc >> 1) ^ (0xEDB88320 & -(crc & 1));
+  }
+  return ~crc;
+}
+
+struct WeatherSnapshot {
+  int   weatherCode;
+  float temp, tempMax, tempMin, precipProb;
+  char  tempUnit;
+  char  forecastDate[12];
+};
+
+static uint32_t weatherHash() {
+  WeatherSnapshot s;
+  memset(&s, 0, sizeof(s));
+  s.weatherCode = currentWeatherCode;
+  s.temp        = currentTemp;
+  s.tempMax     = currentTempMax;
+  s.tempMin     = currentTempMin;
+  s.precipProb  = currentPrecipProb;
+  s.tempUnit    = currentTempUnit;
+  strlcpy(s.forecastDate, currentForecastDate, sizeof(s.forecastDate));
+  return crc32buf(&s, sizeof(s));
+}
+
+void displayWeather();  // forward declaration
+
+// Display weather only if data changed; update stored hash on refresh.
+static void displayIfChanged() {
+  uint32_t h = weatherHash();
+  if (h != lastWeatherHash) {
+    displayWeather();
+    lastWeatherHash = h;
+  } else {
+    Serial.println("Weather unchanged — skipping display refresh");
+  }
+}
+
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
@@ -836,7 +887,7 @@ void setup() {
   if (tryFetchTwice()) {
     fetchRetryIndex = 0;
     ledBlink(2, 80, 80);
-    displayWeather();
+    displayIfChanged();
   } else {
     ledBlink(3, 300, 200);
     if (!everDisplayed) displayNetworkError("No weather data", "Check connection");
@@ -856,7 +907,7 @@ void setup() {
       }
       if (tryFetchTwice()) {
         ledBlink(2, 80, 80);
-        displayWeather();
+        displayIfChanged();
         break;
       }
       ledBlink(3, 300, 200);
@@ -910,7 +961,7 @@ void loop() {
 
     if (timeToFetch) {
       if (updateWeatherData()) {
-        displayWeather();
+        displayIfChanged();
         display.hibernate();
         fetchRetryMs = 0;
       } else {
@@ -945,7 +996,7 @@ void loop() {
     }
     // Short press → immediate refresh
     if (updateWeatherData())
-      displayWeather();
+      displayIfChanged();
     display.hibernate();
   }
 
