@@ -11,7 +11,7 @@ on a GDEM029C90 128×296 panel via GxEPD2. No API keys required for either servi
 - **MCU**: ESP32-C3 DevKitM-1 (`esp32-c3-devkitm-1` board in PlatformIO)
 - **Display**: GDEM029C90, SSD1680, 128×296, 3-color (Black / White / Red)
 - **SPI wiring** (from `src/display.h`): CS=SS, DC=8, RST=9, BUSY=10
-- **Button**: GPIO 9 default (active-low, INPUT_PULLUP)
+- **Button**: GPIO 9 default (active-low, INPUT_PULLUP); held at boot → portal immediately; held ≥5 s in loop → portal; short press in loop → immediate refresh
 - **LED**: GPIO 8 default (active-low)
 
 ## Source files

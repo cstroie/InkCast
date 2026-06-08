@@ -187,7 +187,7 @@ select{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/
 <div class="fl">
 <label class="flb" for="btn">Button GPIO</label>
 <input id="btn" name="btn" type="number" min="-1" max="48" value="%BTN%">
-<p class="fh">Hold at boot (&gt;1 s) to re-enter setup. Short press forces an immediate refresh.</p>
+<p class="fh">Hold at boot or hold 5 s during operation to re-enter setup. Short press forces an immediate refresh.</p>
 </div>
 <div class="fl">
 <label class="flb" for="led">LED GPIO</label>
