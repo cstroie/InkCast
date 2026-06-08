@@ -192,7 +192,7 @@ select{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/
 <div class="fl">
 <label class="flb" for="led">LED GPIO</label>
 <input id="led" name="led" type="number" min="-1" max="48" value="%LED%">
-<p class="fh">Active-low. Steady = portal/fetch; slow = connecting; fast = NTP; very fast = portal window; 2&#215; = ok; 3&#215; = error.</p>
+<p class="fh">Active-low. Steady = portal/fetch; slow = connecting; very fast = portal window; 2&#215; = ok; 3&#215; = error.</p>
 </div>
 </div>
 </div>

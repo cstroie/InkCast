@@ -68,7 +68,7 @@ Current temperature comes from `current.temperature_2m` in the Open-Meteo respon
 |-------|---------|
 | Portal active | Steady on |
 | WiFi connecting | Slow blink 250ms on/off |
-| NTP wait loop | Fast blink 100ms on / 400ms off |
+| NTP wait loop | Fast blink 100ms on / 400ms off — **NTP removed, pattern unused** |
 | Network fetch in progress | Steady on |
 | Success | 2 short flashes (80/80ms) |
 | Error | 3 long flashes (300/200ms) |
