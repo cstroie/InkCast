@@ -77,54 +77,77 @@ static int  currentReportHour       = -1;  // local hour from current.time
 static int  currentReportMin        = -1;  // local minute from current.time
 static unsigned long lastWeatherUpdate = 0;
 
-// CRC32 hash of last displayed weather — survives deep sleep
-RTC_DATA_ATTR static uint32_t lastWeatherHash = 0;
+// Last-displayed weather state — survives deep sleep, used for significance checks
+RTC_DATA_ATTR static float lastDispTemp        = -999.0f;
+RTC_DATA_ATTR static float lastDispTempMax     = -999.0f;
+RTC_DATA_ATTR static float lastDispTempMin     = -999.0f;
+RTC_DATA_ATTR static float lastDispPrecipProb  = -1.0f;
+RTC_DATA_ATTR static int   lastDispWeatherCode = -1;
+RTC_DATA_ATTR static char  lastDispLocation[96] = "";
+RTC_DATA_ATTR static int   fetchCycleCount     = 0;  // resets to 0 after each display update
 
-// ---------------------------------------------------------------------------
-// Weather hash helpers
-// ---------------------------------------------------------------------------
-
-static uint32_t crc32buf(const void* data, size_t len) {
-  const uint8_t* p = (const uint8_t*)data;
-  uint32_t crc = 0xFFFFFFFF;
-  while (len--) {
-    crc ^= *p++;
-    for (int i = 0; i < 8; i++)
-      crc = (crc >> 1) ^ (0xEDB88320 & -(crc & 1));
-  }
-  return ~crc;
-}
-
-struct WeatherSnapshot {
-  int   weatherCode;
-  float temp, tempMax, tempMin, precipProb;
-  char  tempUnit;
-  char  forecastDate[12];
-};
-
-static uint32_t weatherHash() {
-  WeatherSnapshot s;
-  memset(&s, 0, sizeof(s));
-  s.weatherCode = currentWeatherCode;
-  s.temp        = currentTemp;
-  s.tempMax     = currentTempMax;
-  s.tempMin     = currentTempMin;
-  s.precipProb  = currentPrecipProb;
-  s.tempUnit    = currentTempUnit;
-  strlcpy(s.forecastDate, currentForecastDate, sizeof(s.forecastDate));
-  return crc32buf(&s, sizeof(s));
-}
+// Thresholds for "significant change" detection
+static constexpr float TEMP_CHANGE_THRESHOLD_C  = 3.0f;
+static constexpr float TEMP_CHANGE_THRESHOLD_F  = 5.4f;
+static constexpr float RANGE_CHANGE_THRESHOLD   = 5.0f;
+static constexpr float PRECIP_CHANGE_THRESHOLD  = 20.0f;  // one umbrella icon step
+static constexpr int   FORCE_REFRESH_CYCLES     = 4;
 
 void displayWeather();  // forward declaration
 
-// Display weather only if data changed; update stored hash on refresh.
+// Returns true if the current weather differs enough from last displayed to warrant a refresh.
+static bool hasSignificantChange() {
+  // First boot sentinel: lastDispTemp starts at -999
+  if (lastDispWeatherCode == -1) return true;
+
+  float tempThreshold = (currentTempUnit == 'F') ? TEMP_CHANGE_THRESHOLD_F : TEMP_CHANGE_THRESHOLD_C;
+
+  if (fabsf(currentTemp - lastDispTemp) >= tempThreshold) {
+    Serial.printf("Significant: temp %.1f→%.1f (threshold %.1f)\n",
+                  lastDispTemp, currentTemp, tempThreshold);
+    return true;
+  }
+  if (currentWeatherCode != lastDispWeatherCode) {
+    Serial.printf("Significant: weather code %d→%d\n", lastDispWeatherCode, currentWeatherCode);
+    return true;
+  }
+  if (fabsf(currentTempMax - lastDispTempMax) >= RANGE_CHANGE_THRESHOLD ||
+      fabsf(currentTempMin - lastDispTempMin) >= RANGE_CHANGE_THRESHOLD) {
+    Serial.printf("Significant: forecast range %.1f–%.1f → %.1f–%.1f\n",
+                  lastDispTempMin, lastDispTempMax, currentTempMin, currentTempMax);
+    return true;
+  }
+  if (fabsf(currentPrecipProb - lastDispPrecipProb) >= PRECIP_CHANGE_THRESHOLD) {
+    Serial.printf("Significant: precip prob %.0f%%→%.0f%%\n", lastDispPrecipProb, currentPrecipProb);
+    return true;
+  }
+  if (strcmp(currentLocation, lastDispLocation) != 0) {
+    Serial.printf("Significant: location changed '%s'→'%s'\n", lastDispLocation, currentLocation);
+    return true;
+  }
+  return false;
+}
+
+// Display weather if the change is significant or the forced-refresh cycle has elapsed.
 static void displayIfChanged() {
-  uint32_t h = weatherHash();
-  if (h != lastWeatherHash) {
+  fetchCycleCount++;
+  bool force       = (fetchCycleCount >= FORCE_REFRESH_CYCLES);
+  bool significant = hasSignificantChange();
+
+  if (significant || force) {
+    if (force && !significant)
+      Serial.printf("Forcing display refresh after %d cycles\n", fetchCycleCount);
     displayWeather();
-    lastWeatherHash = h;
+    lastDispTemp        = currentTemp;
+    lastDispTempMax     = currentTempMax;
+    lastDispTempMin     = currentTempMin;
+    lastDispPrecipProb  = currentPrecipProb;
+    lastDispWeatherCode = currentWeatherCode;
+    strlcpy(lastDispLocation, currentLocation, sizeof(lastDispLocation));
+    fetchCycleCount = 0;
   } else {
-    Serial.println("Weather unchanged — skipping display refresh");
+    Serial.printf("No significant change (cycle %d/%d) — skipping display refresh\n",
+                  fetchCycleCount, FORCE_REFRESH_CYCLES);
   }
 }
 

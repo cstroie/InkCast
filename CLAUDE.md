@@ -45,6 +45,13 @@ on a GDEM029C90 128×296 panel via GxEPD2. No API keys required for either servi
 - **Color use**: `GxEPD_RED` for severe weather icon (WMO codes 56,57,66,67,75,82,86,95,96,99) and for current temp ≥ 30 °C / 86 °F. Min–max range stays black.
 - **Fetch retry**: on failure, waits a random 1–5 min then doubles each retry, capped at 30 min. Display is not updated until data arrives (old e-paper content preserved).
 - **Deep sleep**: `config.deepSleepMins > 0` enables sleep; the actual duration is computed by `secsUntilAlignedSlot(config.updateInterval)` — it finds the next slot in {`:02`, `:17`, `:32`, `:47`} that is at least `updateInterval` minutes away, aligning wakes to 2 min after each Open-Meteo refresh. Falls back to `updateInterval * 60` if `getLocalTime()` fails. `deepSleepMins == -1` means stay awake (loop + config server run).
+- **Display refresh gating** (`displayIfChanged()`): after each successful fetch the display is only refreshed when the change is *significant*; otherwise the old e-paper image is preserved to reduce panel wear. Significance criteria (any one triggers a refresh):
+  - Current temperature changed by ≥ 3 °C / 5.4 °F from last displayed value
+  - WMO weather condition code changed (logged as "→ severe" when entering a severe code)
+  - Forecast min or max temperature changed by ≥ 5 ° from last displayed value
+  - Precipitation probability changed by ≥ 20 % (one umbrella-icon step)
+  - Location string changed (device moved / city override changed)
+  - As a fallback, the display is **force-refreshed every 4 fetch cycles** regardless of significance. Threshold constants (`TEMP_CHANGE_THRESHOLD_C/F`, `RANGE_CHANGE_THRESHOLD`, `PRECIP_CHANGE_THRESHOLD`, `FORCE_REFRESH_CYCLES`) are defined near the top of `src/main.cpp`. Last-displayed state (`lastDispTemp`, `lastDispTempMax`, `lastDispTempMin`, `lastDispPrecipProb`, `lastDispWeatherCode`, `lastDispLocation`, `fetchCycleCount`) is preserved in RTC memory across deep sleep.
 
 ## Display layout (296×128, rotation=1)
 
@@ -104,7 +111,7 @@ pio run --target upload   # flash
 pio device monitor        # serial at 115200
 ```
 
-Flash usage (after pinning platform/tools) observed: ~92.1% of 1.31 MB partition — the project is pinned to `platform-espressif32` `v7.0.1` which provides `framework-arduinoespressif32 @ 3.20017.241212+sha.dcc1105b` and older Arduino core libraries (2.0.0 series) that reduce final firmware size. Avoid adding large assets or libraries.
+Flash usage (after pinning platform/tools) observed: ~94.2% of 1.31 MB partition — the project is pinned to `platform-espressif32` `v7.0.1` which provides `framework-arduinoespressif32 @ 3.20017.241212+sha.dcc1105b` and older Arduino core libraries (2.0.0 series) that reduce final firmware size. Avoid adding large assets or libraries.
 
 ## Copyright
 
