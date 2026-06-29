@@ -457,28 +457,15 @@ void displayWeather() {
     // Line 2 — min–max range, centred in right column
     display.setFont(&FreeSans12pt7b);
     {
-      bool coldMin = (currentTempUnit == 'C') ? (currentTempMin < 0.0f)  : (currentTempMin < 32.0f);
-      bool hotMax  = (currentTempUnit == 'C') ? (currentTempMax >= 30.0f) : (currentTempMax >= 86.0f);
-      char minStr[8], sepStr[8], maxStr[8];
-      snprintf(minStr, sizeof(minStr), "%.0f",   currentTempMin);
-      snprintf(sepStr, sizeof(sepStr), " ... ");
-      snprintf(maxStr, sizeof(maxStr), "%.0f%c", currentTempMax, currentTempUnit);
-      int16_t tx, ty; uint16_t tw, th;
-      // measure full string for centring
+      bool coldMin  = (currentTempUnit == 'C') ? (currentTempMin < 0.0f)   : (currentTempMin < 32.0f);
+      bool hotMax   = (currentTempUnit == 'C') ? (currentTempMax >= 30.0f) : (currentTempMax >= 86.0f);
       char rangeStr[16];
-      snprintf(rangeStr, sizeof(rangeStr), "%s%s%s", minStr, sepStr, maxStr);
+      snprintf(rangeStr, sizeof(rangeStr), "%.0f ... %.0f%c", currentTempMin, currentTempMax, currentTempUnit);
+      int16_t tx, ty; uint16_t tw, th;
       display.getTextBounds(rangeStr, 0, 0, &tx, &ty, &tw, &th);
-      int16_t cx = COL + (display.width() - COL - (int16_t)tw) / 2;
-      // draw min
-      display.setTextColor(coldMin ? GxEPD_RED : GxEPD_BLACK);
-      display.setCursor(cx, 88);
-      display.print(minStr);
-      // draw separator
-      display.setTextColor(GxEPD_BLACK);
-      display.print(sepStr);
-      // draw max
-      display.setTextColor(hotMax ? GxEPD_RED : GxEPD_BLACK);
-      display.print(maxStr);
+      display.setCursor(COL + (display.width() - COL - (int16_t)tw) / 2, 88);
+      display.setTextColor((coldMin || hotMax) ? GxEPD_RED : GxEPD_BLACK);
+      display.print(rangeStr);
     }
 
     // Line 3 — umbrellas (0–5), centred in right column
@@ -522,6 +509,7 @@ void displayWeather() {
       }
 
       display.setFont(NULL);
+      display.setTextColor(GxEPD_BLACK);
       display.setTextSize(1);
       int16_t fx, fy; uint16_t fw, fh;
       display.getTextBounds(footer, 0, 0, &fx, &fy, &fw, &fh);
